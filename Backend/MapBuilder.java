@@ -23,7 +23,7 @@ public final class MapBuilder {
     public static final int ROOM_WIDTH = 800;
     public static final int ROOM_HEIGHT = 500;
     private static final boolean USE_LEGACY_FALLBACK = false;
-    private static final String LEGACY_DOOR5_ID = "door5";
+    private static final String LEGACY_DOOR5_ID = "d5";
     private static final int LEGACY_DOOR5_X = 5;
     private static final int LEGACY_DOOR5_Y = 5;
     private static final int LEGACY_DOOR5_DIR = 0;
@@ -73,8 +73,14 @@ public final class MapBuilder {
         String warning = "fallback".equals(resolution.getSource()) ? "missing_config" : null;
         logRoomBuild(resolvedRoomKey, data.getFurnitureCount(), data.getBotsCount(), doorResult.getDoorCount(),
             resolution.getSource(), warning, doorResult.getDoorIdsCsv());
-        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey) && doorResult.isLegacyDoor5Ok()) {
-            System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
+        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey)) {
+            if (doorResult.isLegacyDoor5Ok()) {
+                System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
+            }
+            if (!doorResult.getDoorIdsCsv().isEmpty()) {
+                System.out.println("[DOORS_LIST] roomKey=" + resolvedRoomKey
+                    + " keys=" + doorResult.getDoorIdsCsv());
+            }
         }
         return data;
     }
@@ -171,11 +177,6 @@ public final class MapBuilder {
             }
             if (!seen.add(doorId)) {
                 logDoorSkip(config.getRoomKey(), doorId, "duplicate_id");
-                continue;
-            }
-            String destination = door.getDestinationRoomKey();
-            if (destination == null || destination.trim().isEmpty()) {
-                logDoorSkip(config.getRoomKey(), doorId, "missing_destination");
                 continue;
             }
             if (written > 0) {
