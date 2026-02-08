@@ -14,18 +14,18 @@
 ## Manual test steps
 1. **Warning**
    - From the reports inbox, trigger a warning.
-   - Expected: victim receives `adminMessage` popup; logs include `[MOD_WARN_REQ]` and `[MOD_WARN_SENT]`.
+   - Expected: victim receives `adminMessage` popup; logs include `[MOD_IN]`, `[MOD_RESOLVE]`, `[MOD_SEND_ADMINMSG]`, `[MOD_WARN_REQ]`.
 2. **Ban**
    - Trigger a 60-second ban.
-   - Expected: victim receives `banned` event (`startDate`, `endDate`, `timeLeft`, `type`) and optional `adminMessage`; logs include `[MOD_BAN_REQ]`, `[MOD_BAN_APPLY]`, and `[MOD_BAN_ENFORCE]` on re-login.
+   - Expected: victim receives `banned` event (`startDate`, `endDate`, `timeLeft`, `type`, `trace`) and `adminMessage`; logs include `[MOD_IN]`, `[MOD_RESOLVE]`, `[MOD_BAN_SEND]`, and `[MOD_BAN_ENFORCE]` on re-login.
 3. **Kick**
    - Trigger a kick action.
-   - Expected: victim disconnects (client `connectionLost`); logs include `[MOD_KICK_REQ]` and `[MOD_KICK_APPLIED]`.
+   - Expected: victim disconnects (client `connectionLost`); logs include `[MOD_IN]`, `[MOD_RESOLVE]`, and `[MOD_KICK]`.
 
 ## Expected logs
-- `[MOD_WARN_REQ]`, `[MOD_WARN_SENT]`
-- `[MOD_BAN_REQ]`, `[MOD_BAN_APPLY]`, `[MOD_BAN_ENFORCE]`
-- `[MOD_KICK_REQ]`, `[MOD_KICK_APPLIED]`
+- `[MOD_IN]`, `[MOD_RESOLVE]`, `[MOD_SEND_ADMINMSG]`
+- `[MOD_BAN_SEND]`, `[MOD_BAN_ENFORCE]`
+- `[MOD_KICK]`
 - `[REPORT_CREATE_IN]`, `[REPORT_CREATE_STORE]`
 - `[COMPLAINTLIST_BUILD]`
 - `[COMPLAINT_ACTION_IN]`, `[COMPLAINT_ACTION_RESOLVE]`

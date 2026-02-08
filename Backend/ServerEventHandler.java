@@ -81,10 +81,12 @@ public class ServerEventHandler extends BaseServerEventHandler {
                         break;
                     }
                 }
+                String traceId = "enforce-login-" + user.getName() + "-" + System.currentTimeMillis();
+                banned.putUtfString("trace", traceId);
                 ext.send("banned", banned, user);
                 // disconnect
                 getApi().disconnectUser(user);
-                trace("🚫 Disconnected user due to LOGIN ban: " + user.getName());
+                trace("[MOD_BAN_ENFORCE] trace=" + traceId + " user=" + user.getName() + " type=LOGIN");
                 return;
             }
         } catch (Exception e) {
@@ -103,10 +105,12 @@ public class ServerEventHandler extends BaseServerEventHandler {
                         break;
                     }
                 }
+                String traceId = "enforce-chat-" + user.getName() + "-" + System.currentTimeMillis();
                 banned.putUtfString("type", "CHAT");
+                banned.putUtfString("trace", traceId);
                 ext.send("banned", banned, user);
                 getApi().disconnectUser(user);
-                trace("[MOD_BAN_ENFORCE] user=" + user.getName() + " type=CHAT");
+                trace("[MOD_BAN_ENFORCE] trace=" + traceId + " user=" + user.getName() + " type=CHAT");
                 return;
             }
         } catch (Exception e) {
