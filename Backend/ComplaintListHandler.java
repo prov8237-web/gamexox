@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Knights/Security panel list.
- * Returns { list: [ {id, reporterId, reporterName, targetId, targetName, room, text, reason, time, status}, ... ] }
+ * Returns { complaints: [ {id, message, comment, reporterAvatarID, reportedAvatarID, isPervert, banCount, nextBanMin}, ... ] }
  */
 public class ComplaintListHandler extends OsBaseHandler {
 
@@ -28,19 +28,13 @@ public class ComplaintListHandler extends OsBaseHandler {
         String status = readString(data, "status", "OPEN");
         int limit = readInt(data, "limit", 50);
 
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints(status, limit);
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) {
-            arr.addSFSObject(r.toSFSObject());
-        }
+        trace("[REPORT_INBOX_FETCH] requester=" + user.getName() + " status=" + status + " limit=" + limit);
 
-        SFSObject res = new SFSObject();
-        res.putBool("ok", true);
-        res.putSFSArray("list", arr);
+        SFSObject res = buildComplaintPayload(store, status, limit);
         sendResponseWithRid("complaintlist", res, user, rid);
     }
 
-    private boolean isSecurityUser(User u, InMemoryStore store) {
+    public static boolean isSecurityUser(User u, InMemoryStore store) {
         try {
             InMemoryStore.UserState st = store.getOrCreateUser(u);
             String roles = st.getRoles();
@@ -50,6 +44,28 @@ public class ComplaintListHandler extends OsBaseHandler {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static SFSObject buildComplaintPayload(InMemoryStore store, String status, int limit) {
+        List<InMemoryStore.ReportRecord> list = store.listReports(status, limit);
+        ISFSArray arr = new SFSArray();
+        for (InMemoryStore.ReportRecord r : list) {
+            SFSObject item = new SFSObject();
+            item.putLong("id", r.reportId);
+            item.putUtfString("message", r.message == null ? "" : r.message);
+            item.putUtfString("comment", r.comment == null ? "" : r.comment);
+            item.putUtfString("reporterAvatarID", r.reporterId == null ? "" : r.reporterId);
+            item.putUtfString("reportedAvatarID", r.reportedId == null ? "" : r.reportedId);
+            item.putInt("isPervert", r.isPervert);
+            item.putInt("banCount", r.banCount);
+            item.putInt("nextBanMin", r.nextBanMin);
+            arr.addSFSObject(item);
+        }
+
+        SFSObject res = new SFSObject();
+        res.putBool("ok", true);
+        res.putSFSArray("complaints", arr);
+        return res;
     }
 
     private static String readString(ISFSObject obj, String key, String def) {

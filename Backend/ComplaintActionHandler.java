@@ -4,7 +4,6 @@ package src5;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.Zone;
 import com.smartfoxserver.v2.entities.data.*;
-import java.util.List;
 
 /**
  * Knights/Security panel actions on a complaint:
@@ -19,7 +18,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         int rid = extractRid(params);
         InMemoryStore store = getStore();
 
-        if (!isSecurityUser(sender, store)) {
+        if (!ComplaintListHandler.isSecurityUser(sender, store)) {
             SFSObject denied = new SFSObject();
             denied.putBool("ok", false);
             denied.putUtfString("error", "NO_PERMISSION");
@@ -33,10 +32,14 @@ public class ComplaintActionHandler extends OsBaseHandler {
         String action = readStringAny(data, new String[]{"action","type","cmd"}, "").toLowerCase();
         int duration = readInt(data, "duration", readInt(data, "time", readInt(data, "seconds", 3600)));
         String reason = readStringAny(data, new String[]{"reason","note","message"}, null);
+        Integer isCorrect = readOptionalInt(data, "isCorrect");
+        Integer isPervert = readOptionalInt(data, "isPervert");
+        Integer isAbuse = readOptionalInt(data, "isAbuse");
 
-        InMemoryStore.ComplaintRecord complaint = store.getComplaint(id);
+        InMemoryStore.ReportRecord report = store.getReport(id);
+        InMemoryStore.ComplaintRecord complaint = report == null ? store.getComplaint(id) : null;
 
-        if (complaint == null) {
+        if (report == null && complaint == null) {
             SFSObject res = new SFSObject();
             res.putBool("ok", false);
             res.putUtfString("error", "NOT_FOUND");
@@ -46,16 +49,30 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
         boolean ok = true;
 
-        if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
-            ok = store.resolveComplaint(id);
+        boolean usesInboxFlags = isCorrect != null || isPervert != null || isAbuse != null;
+
+        if (report != null && usesInboxFlags) {
+            if (isPervert != null) {
+                report.isPervert = Math.max(0, isPervert);
+            }
+            if (isAbuse != null) {
+                report.isAbuse = Math.max(0, isAbuse);
+            }
+            if (isCorrect != null) {
+                ok = store.resolveReport(id);
+            }
+        } else if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
+            ok = report != null ? store.resolveReport(id) : store.resolveComplaint(id);
         } else if ("warn".equals(action)) {
-            ok = warnTarget(complaint, reason);
+            ok = report != null ? warnTarget(report, reason) : warnTarget(complaint, reason);
         } else if ("kick".equals(action)) {
-            ok = kickTarget(complaint);
+            ok = report != null ? kickTarget(report) : kickTarget(complaint);
         } else if ("ban".equals(action) || "chatban".equals(action)) {
-            ok = banTarget(complaint, "CHAT", duration);
+            ok = report != null ? banTarget(report, "CHAT", duration) : banTarget(complaint, "CHAT", duration);
         } else if ("loginban".equals(action) || "banlogin".equals(action)) {
-            ok = banTarget(complaint, "LOGIN", duration);
+            ok = report != null ? banTarget(report, "LOGIN", duration) : banTarget(complaint, "LOGIN", duration);
+        } else if (usesInboxFlags && report != null) {
+            ok = true;
         } else {
             ok = false;
         }
@@ -68,6 +85,20 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
         // push updated list
         pushComplaintListToSecurityUsers();
+    }
+
+    private boolean warnTarget(InMemoryStore.ReportRecord report, String reason) {
+        User target = resolveTargetUser(report.reportedId, null);
+        if (target == null) return false;
+
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("from", "SYSTEM");
+        payload.putUtfString("type", "WARN");
+        payload.putUtfString("message", reason != null ? reason : "WARNING");
+        try {
+            getParentExtension().send("cmd2user", payload, target);
+        } catch (Exception ignored) {}
+        return true;
     }
 
     private boolean warnTarget(InMemoryStore.ComplaintRecord complaint, String reason) {
@@ -86,6 +117,17 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
     private boolean kickTarget(InMemoryStore.ComplaintRecord complaint) {
         User target = resolveTargetUser(complaint.targetId, complaint.targetName);
+        if (target == null) return false;
+        try {
+            getApi().disconnectUser(target);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean kickTarget(InMemoryStore.ReportRecord report) {
+        User target = resolveTargetUser(report.reportedId, null);
         if (target == null) return false;
         try {
             getApi().disconnectUser(target);
@@ -117,37 +159,42 @@ public class ComplaintActionHandler extends OsBaseHandler {
         return true;
     }
 
+    private boolean banTarget(InMemoryStore.ReportRecord report, String banType, int duration) {
+        User target = resolveTargetUser(report.reportedId, null);
+        if (target == null) return false;
+
+        String ip = target.getSession().getAddress();
+        InMemoryStore store = getStore();
+        InMemoryStore.BanRecord rec = store.addBanForIp(ip, banType, duration);
+        if (rec == null) return false;
+        store.incrementBanCount(report.reportedId);
+
+        SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
+        payload.putUtfString("type", banType);
+        try {
+            getParentExtension().send("banned", payload, target);
+        } catch (Exception ignored) {}
+
+        if ("LOGIN".equalsIgnoreCase(banType)) {
+            try { getApi().disconnectUser(target); } catch (Exception ignored) {}
+        }
+        return true;
+    }
+
     private void pushComplaintListToSecurityUsers() {
         InMemoryStore store = getStore();
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints("OPEN", 50);
-
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) arr.addSFSObject(r.toSFSObject());
-
-        SFSObject payload = new SFSObject();
-        payload.putBool("ok", true);
-        payload.putSFSArray("list", arr);
+        SFSObject payload = ComplaintListHandler.buildComplaintPayload(store, "OPEN", 50);
 
         try {
             Zone z = getZone();
             if (z == null) return;
             for (User u : z.getUserList()) {
                 if (u == null) continue;
-                if (isSecurityUser(u, store)) {
+                if (ComplaintListHandler.isSecurityUser(u, store)) {
                     sendValidated(u, "complaintlist", payload);
                 }
             }
         } catch (Exception ignored) {}
-    }
-
-    private boolean isSecurityUser(User u, InMemoryStore store) {
-        try {
-            InMemoryStore.UserState st = store.getOrCreateUser(u);
-            String roles = st.getRoles();
-            return PermissionCodec.hasPermission(roles, AvatarPermissionIds.SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.EDITOR_SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.CARD_SECURITY);
-        } catch (Exception e) { return false; }
     }
 
     private User resolveTargetUser(String avatarIdOrName, String avatarNameFallback) {
@@ -221,5 +268,15 @@ public class ComplaintActionHandler extends OsBaseHandler {
             }
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private static Integer readOptionalInt(ISFSObject obj, String key) {
+        try {
+            if (obj != null && obj.containsKey(key)) {
+                try { return obj.getInt(key); } catch (Exception ignored) {}
+                try { Double d = obj.getDouble(key); return d == null ? null : d.intValue(); } catch (Exception ignored2) {}
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

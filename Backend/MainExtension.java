@@ -39,9 +39,10 @@ public class MainExtension extends SFSExtension {
         registerHandler("questaccept", GenericRequestHandler.class);
         registerHandler("complaintlist", ComplaintListHandler.class);
         registerHandler("complaintaction", ComplaintActionHandler.class);
+        registerHandler("baninfo", BanInfoHandler.class);
         registerHandler("prereport", PreReportHandler.class);
         registerHandler("ingamereport", PreReportHandler.class);
-        registerHandler("report", PreReportHandler.class);
+        registerHandler("report", ReportHandler.class);
 
         registerHandler("guidelist", GuideListHandler.class);
         registerHandler("guiderequest", GuideRequestHandler.class);

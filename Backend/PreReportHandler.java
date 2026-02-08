@@ -30,10 +30,13 @@ public class PreReportHandler extends OsBaseHandler {
         InMemoryStore store = getStore();
         InMemoryStore.UserState st = store.getOrCreateUser(sender);
 
-        String reporterId = String.valueOf(st.getUserId());
+        String reporterId = HandlerUtils.normalizeAvatarId(sender.getName());
         String reporterName = st.getAvatarName() != null ? st.getAvatarName() : sender.getName();
 
+        String normalizedTargetId = HandlerUtils.normalizeAvatarId(targetId);
+        int banCount = store.getBanCount(normalizedTargetId);
         long complaintId = store.addComplaint(reporterId, reporterName, targetId, targetName, roomName, text, reason);
+        store.addReport(reporterId, normalizedTargetId, text, reason, 0, banCount, 0);
 
         // ACK to reporter
         SFSObject res = new SFSObject();
@@ -60,39 +63,18 @@ public class PreReportHandler extends OsBaseHandler {
 
     private void pushComplaintListToSecurityUsers() {
         InMemoryStore store = getStore();
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints("OPEN", 50);
-
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) {
-            arr.addSFSObject(r.toSFSObject());
-        }
-
-        SFSObject payload = new SFSObject();
-        payload.putBool("ok", true);
-        payload.putSFSArray("list", arr);
+        SFSObject payload = ComplaintListHandler.buildComplaintPayload(store, "OPEN", 50);
 
         try {
             Zone z = getZone();
             if (z == null) return;
             for (User u : z.getUserList()) {
                 if (u == null) continue;
-                if (isSecurityUser(u, store)) {
+                if (ComplaintListHandler.isSecurityUser(u, store)) {
                     sendValidated(u, "complaintlist", payload);
                 }
             }
         } catch (Exception ignored) {}
-    }
-
-    private boolean isSecurityUser(User u, InMemoryStore store) {
-        try {
-            InMemoryStore.UserState st = store.getOrCreateUser(u);
-            String roles = st.getRoles();
-            return PermissionCodec.hasPermission(roles, AvatarPermissionIds.SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.EDITOR_SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.CARD_SECURITY);
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {
