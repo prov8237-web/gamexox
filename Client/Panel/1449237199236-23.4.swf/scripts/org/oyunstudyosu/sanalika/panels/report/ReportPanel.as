@@ -95,9 +95,14 @@ package org.oyunstudyosu.sanalika.panels.report
       override public function init() : void
       {
          super.init();
-         this.avatarId = data.params.avatarId;
+         var _loc1_:Object = data != null ? data.params : null;
+         this.avatarId = _loc1_ != null && _loc1_.avatarId != null ? _loc1_.avatarId : null;
+         if((this.avatarId == null || String(this.avatarId) == "0" || String(this.avatarId) == "null") && _loc1_ != null && _loc1_.avatarID != null)
+         {
+            this.avatarId = _loc1_.avatarID;
+         }
          dragHandler = this.mcDragger;
-         this.lastMessage = data.params.lastMessage;
+         this.lastMessage = _loc1_ != null ? _loc1_.lastMessage : null;
          if(this.sChat == null)
          {
             this.sChat = TextFieldManager.convertAsArabicTextField(getChildByName("lblChat") as TextField,true,true);
