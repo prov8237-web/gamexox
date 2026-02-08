@@ -4,7 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
@@ -19,6 +23,11 @@ public final class MapBuilder {
     public static final int ROOM_WIDTH = 800;
     public static final int ROOM_HEIGHT = 500;
     private static final boolean USE_LEGACY_FALLBACK = false;
+    private static final String LEGACY_DOOR5_ID = "door5";
+    private static final int LEGACY_DOOR5_X = 5;
+    private static final int LEGACY_DOOR5_Y = 5;
+    private static final int LEGACY_DOOR5_DIR = 0;
+    private static final String LEGACY_DOOR5_PROPERTY = "FlatExitProperty";
 
     private MapBuilder() {}
 
@@ -49,20 +58,24 @@ public final class MapBuilder {
                 "legacy"
             );
             logRoomBuild(resolvedRoomKey, legacy.getFurnitureCount(), legacy.getBotsCount(), legacy.getDoorsCount(),
-                legacy.getSource(), "legacy_fallback");
+                legacy.getSource(), "legacy_fallback", "");
             return legacy;
         }
 
+        DoorBuildResult doorResult = buildDoorsResult(config);
         RoomBuildData data = new RoomBuildData(
             buildMapBase64(resolvedRoomKey),
-            buildDoorsJson(config),
+            doorResult.getDoorsJson(),
             buildBotsJson(config),
             buildSceneItems(config),
             resolution.getSource()
         );
         String warning = "fallback".equals(resolution.getSource()) ? "missing_config" : null;
-        logRoomBuild(resolvedRoomKey, data.getFurnitureCount(), data.getBotsCount(), data.getDoorsCount(),
-            resolution.getSource(), warning);
+        logRoomBuild(resolvedRoomKey, data.getFurnitureCount(), data.getBotsCount(), doorResult.getDoorCount(),
+            resolution.getSource(), warning, doorResult.getDoorIdsCsv());
+        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey) && doorResult.isLegacyDoor5Ok()) {
+            System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
+        }
         return data;
     }
 
@@ -129,36 +142,40 @@ public final class MapBuilder {
         if ("fallback".equals(resolution.getSource()) && USE_LEGACY_FALLBACK) {
             return buildLegacyDoorsJson();
         }
-        return buildDoorsJson(resolution.getConfig());
+        return buildDoorsResult(resolution.getConfig()).getDoorsJson();
     }
 
     private static String buildDoorsJson(RoomConfig config) {
+        return buildDoorsResult(config).getDoorsJson();
+    }
+
+    private static DoorBuildResult buildDoorsResult(RoomConfig config) {
         if (config.getDoors().isEmpty()) {
-            return "[]";
+            return new DoorBuildResult("[]", new ArrayList<>(), false);
         }
         StringBuilder json = new StringBuilder();
-        java.util.Set<String> seen = new java.util.HashSet<>();
+        Set<String> seen = new HashSet<>();
+        List<String> ids = new ArrayList<>();
+        boolean legacyDoor5Ok = false;
         json.append("[");
         int written = 0;
         for (DoorSpawn door : config.getDoors()) {
             if (door == null) {
+                logDoorSkip(config.getRoomKey(), "unknown", "null_door");
                 continue;
             }
             String doorId = door.getKey();
             if (doorId == null || doorId.trim().isEmpty()) {
-                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
-                    + " warning=door_missing_id");
+                logDoorSkip(config.getRoomKey(), "unknown", "missing_id");
                 continue;
             }
             if (!seen.add(doorId)) {
-                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
-                    + " error=duplicate_door_id doorId=" + doorId);
+                logDoorSkip(config.getRoomKey(), doorId, "duplicate_id");
                 continue;
             }
             String destination = door.getDestinationRoomKey();
             if (destination == null || destination.trim().isEmpty()) {
-                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
-                    + " warning=door_missing_destination doorId=" + doorId);
+                logDoorSkip(config.getRoomKey(), doorId, "missing_destination");
                 continue;
             }
             if (written > 0) {
@@ -170,9 +187,17 @@ public final class MapBuilder {
                 .append("\"targetDir\":").append(door.getTargetDir()).append(",")
                 .append("\"property\":{\"cn\":\"").append(door.getPropertyCn()).append("\"}}");
             written++;
+            ids.add(doorId);
+            if (LEGACY_DOOR5_ID.equals(doorId)
+                && door.getTargetX() == LEGACY_DOOR5_X
+                && door.getTargetY() == LEGACY_DOOR5_Y
+                && door.getTargetDir() == LEGACY_DOOR5_DIR
+                && LEGACY_DOOR5_PROPERTY.equals(door.getPropertyCn())) {
+                legacyDoor5Ok = true;
+            }
         }
         json.append("]");
-        return json.toString();
+        return new DoorBuildResult(json.toString(), ids, legacyDoor5Ok);
     }
 
     public static String buildBotsJson(String roomKey) {
@@ -399,7 +424,7 @@ public final class MapBuilder {
     }
 
     private static void logRoomBuild(String roomKey, int furnitureCount, int botsCount, int doorsCount,
-                                     String source, String warning) {
+                                     String source, String warning, String doorIdsCsv) {
         StringBuilder log = new StringBuilder();
         log.append("[ROOM_BUILD] roomKey=").append(roomKey)
             .append(" furniture=").append(furnitureCount)
@@ -409,7 +434,45 @@ public final class MapBuilder {
         if (warning != null && !warning.isEmpty()) {
             log.append(" warning=").append(warning);
         }
+        if (doorIdsCsv != null && !doorIdsCsv.isEmpty()) {
+            log.append(" ids=").append(doorIdsCsv);
+        }
         System.out.println(log);
+    }
+
+    private static void logDoorSkip(String roomKey, String doorId, String reason) {
+        System.out.println("[DOOR_SKIP] roomKey=" + roomKey + " doorId=" + doorId + " reason=" + reason);
+    }
+
+    private static final class DoorBuildResult {
+        private final String doorsJson;
+        private final List<String> doorIds;
+        private final boolean legacyDoor5Ok;
+
+        private DoorBuildResult(String doorsJson, List<String> doorIds, boolean legacyDoor5Ok) {
+            this.doorsJson = doorsJson;
+            this.doorIds = doorIds == null ? new ArrayList<>() : doorIds;
+            this.legacyDoor5Ok = legacyDoor5Ok;
+        }
+
+        public String getDoorsJson() {
+            return doorsJson;
+        }
+
+        public int getDoorCount() {
+            return doorIds == null ? 0 : doorIds.size();
+        }
+
+        public String getDoorIdsCsv() {
+            if (doorIds == null || doorIds.isEmpty()) {
+                return "";
+            }
+            return String.join(",", doorIds);
+        }
+
+        public boolean isLegacyDoor5Ok() {
+            return legacyDoor5Ok;
+        }
     }
 
     public static final class RoomBuildData {

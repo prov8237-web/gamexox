@@ -110,15 +110,15 @@ public final class RoomConfigRegistry {
         bots.add(bot("newspaperStand3", "newspaperStand3", 22, 23, 4, 2));
 
         List<DoorSpawn> doors = new ArrayList<>();
-        doors.add(new DoorSpawn("door1", 100, 6, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
-        doors.add(new DoorSpawn("door2", 200, 6, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
-        doors.add(new DoorSpawn("door3", 300, 6, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
-        doors.add(new DoorSpawn("door4", 400, 6, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
-        doors.add(new DoorSpawn("door5", 500, 6, 0, DEFAULT_DOOR_PROPERTY, "street06", "spawn_default"));
-        doors.add(new DoorSpawn("door6", 600, 6, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
-        doors.add(new DoorSpawn("door7", 700, 6, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
-        doors.add(new DoorSpawn("door8", 800, 6, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
-        doors.add(new DoorSpawn("door9", 900, 6, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
+        doors.add(new DoorSpawn("door5", 5, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("door1", 120, 6, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("door2", 220, 6, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("door3", 320, 6, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("door4", 420, 6, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("door6", 520, 6, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("door7", 620, 6, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("door8", 720, 6, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("door9", 820, 6, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
 
         return new RoomConfig("street01", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
