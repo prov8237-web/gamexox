@@ -19,6 +19,12 @@ public class InGameReportHandler extends OsBaseHandler {
         String command = HandlerUtils.readStringAny(data, "command", "cmd", "action");
         String reason = HandlerUtils.readStringAny(data, "reason", "message", "note");
         String avatarId = HandlerUtils.readStringAny(data, "avatarID", "avatarId", "targetId", "toId", "id");
+        if (isBlank(avatarId) && data != null) {
+            int avatarIdInt = readInt(data, "avatarID", 0);
+            if (avatarIdInt > 0) {
+                avatarId = String.valueOf(avatarIdInt);
+            }
+        }
         int isPervert = readInt(data, "isPervert", 0);
         String traceId = "ingamereport-" + sender.getName() + "-" + System.currentTimeMillis();
 

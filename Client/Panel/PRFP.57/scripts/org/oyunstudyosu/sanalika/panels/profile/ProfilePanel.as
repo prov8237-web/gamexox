@@ -546,6 +546,12 @@ package org.oyunstudyosu.sanalika.panels.profile
          {
             this.playerID = this.user.getVariable(CharacterVariable.PLAYER_ID).getIntValue() + "";
          }
+         if(this.playerID != null && this.playerID != "" && this.avatarID.indexOf("Guest#") == 0)
+         {
+            this.avatarID = this.playerID;
+            this.txtShareLink.text = Connectr.instance.gameModel.webServer + "/landing/" + this.avatarID;
+            this.txtAvatarID.text = this.avatarID;
+         }
          this.txtPlayerID.text = this.playerID;
          if(this.avatarID == Connectr.instance.engine.scene.myChar.id)
          {
