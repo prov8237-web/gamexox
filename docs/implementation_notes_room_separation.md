@@ -12,6 +12,9 @@
 - `Backend/BotSpawn.java`
 - `Backend/DoorSpawn.java`
 
+## Street01 Doors
+Street01: Added 9 doors (`door1`..`door9`) mapping to `street02`..`street10`; coords are placeholders to be refined.
+
 ## How to Extend for `street03`
 1. Add a new `RoomConfig` in `RoomConfigRegistry.buildStreet03()` with:
    - `List<FurnitureSpawn>` items and coordinates.

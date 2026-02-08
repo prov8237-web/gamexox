@@ -137,17 +137,39 @@ public final class MapBuilder {
             return "[]";
         }
         StringBuilder json = new StringBuilder();
+        java.util.Set<String> seen = new java.util.HashSet<>();
         json.append("[");
-        for (int i = 0; i < config.getDoors().size(); i++) {
-            DoorSpawn door = config.getDoors().get(i);
-            if (i > 0) {
+        int written = 0;
+        for (DoorSpawn door : config.getDoors()) {
+            if (door == null) {
+                continue;
+            }
+            String doorId = door.getKey();
+            if (doorId == null || doorId.trim().isEmpty()) {
+                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
+                    + " warning=door_missing_id");
+                continue;
+            }
+            if (!seen.add(doorId)) {
+                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
+                    + " error=duplicate_door_id doorId=" + doorId);
+                continue;
+            }
+            String destination = door.getDestinationRoomKey();
+            if (destination == null || destination.trim().isEmpty()) {
+                System.out.println("[ROOM_BUILD] roomKey=" + config.getRoomKey()
+                    + " warning=door_missing_destination doorId=" + doorId);
+                continue;
+            }
+            if (written > 0) {
                 json.append(",");
             }
-            json.append("{\"key\":\"").append(door.getKey()).append("\",")
+            json.append("{\"key\":\"").append(doorId).append("\",")
                 .append("\"targetX\":").append(door.getTargetX()).append(",")
                 .append("\"targetY\":").append(door.getTargetY()).append(",")
                 .append("\"targetDir\":").append(door.getTargetDir()).append(",")
                 .append("\"property\":{\"cn\":\"").append(door.getPropertyCn()).append("\"}}");
+            written++;
         }
         json.append("]");
         return json.toString();
