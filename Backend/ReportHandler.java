@@ -1,9 +1,11 @@
 package src5;
 
+import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.Zone;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import java.util.List;
 
 public class ReportHandler extends OsBaseHandler {
 
@@ -24,6 +26,13 @@ public class ReportHandler extends OsBaseHandler {
             String fallbackName = readPropertyString(sender, "lastProfileAvatarName");
             if (!isBlank(fallbackName)) {
                 reportedName = fallbackName;
+            }
+        }
+        if ((isBlank(reportedRaw) || "0".equals(reportedRaw)) && !isBlank(reportedName)) {
+            Room room = sender.getLastJoinedRoom();
+            String resolved = resolveTargetIdFromRoom(room, reportedName);
+            if (!isBlank(resolved)) {
+                reportedRaw = resolved;
             }
         }
         if ((isBlank(reportedRaw) || "0".equals(reportedRaw)) && !isBlank(reportedName)) {
@@ -109,6 +118,27 @@ public class ReportHandler extends OsBaseHandler {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String resolveTargetIdFromRoom(Room room, String targetName) {
+        if (room == null || isBlank(targetName)) {
+            return "";
+        }
+        try {
+            List<User> users = room.getUserList();
+            if (users == null) return "";
+            for (User u : users) {
+                if (u == null) continue;
+                String avatarName = HandlerUtils.readUserVarAsString(u, "avatarName");
+                if (targetName.equals(avatarName) || targetName.equals(u.getName())) {
+                    String avatarId = HandlerUtils.readUserVarAsString(u, "avatarID", "avatarId");
+                    if (!isBlank(avatarId)) {
+                        return avatarId;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
 
     private String readPropertyString(User user, String key) {

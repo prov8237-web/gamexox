@@ -19,8 +19,8 @@ public class PreReportHandler extends OsBaseHandler {
         int rid = extractRid(params);
         String command = resolveCommand(sender);
 
-        String targetId = HandlerUtils.readStringAny(data, "avatarID", "avatarId", "targetId", "toId", "id", "uid");
-        String targetName = HandlerUtils.readStringAny(data, "avatarName", "targetName", "toName", "name");
+        String targetId = HandlerUtils.readStringAny(data, "reportedAvatarID", "avatarID", "avatarId", "targetId", "toId", "id", "uid");
+        String targetName = HandlerUtils.readStringAny(data, "reportedAvatarName", "avatarName", "targetName", "toName", "name");
         if (isBlank(targetId) || "0".equals(targetId)) {
             String fallbackId = readPropertyString(sender, "lastProfileAvatarId");
             if (!isBlank(fallbackId)) {
@@ -37,10 +37,17 @@ public class PreReportHandler extends OsBaseHandler {
             targetId = targetName;
         }
         String text = HandlerUtils.readStringAny(data, "text", "msg", "message", "chat", "body");
-        String reason = HandlerUtils.readStringAny(data, "reason", "type", "category");
+        String reason = HandlerUtils.readStringAny(data, "comment", "reason", "type", "category");
+        int isPervert = readInt(data, "isPervert", 0);
 
         Room room = sender.getLastJoinedRoom();
         String roomName = room != null ? room.getName() : readStringAny(data, new String[]{"room","roomName"}, "");
+        if ((isBlank(targetId) || "0".equals(targetId)) && !isBlank(targetName) && room != null) {
+            String resolved = resolveTargetIdFromRoom(room, targetName);
+            if (!isBlank(resolved)) {
+                targetId = resolved;
+            }
+        }
 
         InMemoryStore store = getStore();
         InMemoryStore.UserState st = store.getOrCreateUser(sender);
@@ -52,7 +59,7 @@ public class PreReportHandler extends OsBaseHandler {
 
         String normalizedTargetId = HandlerUtils.normalizeAvatarId(targetId);
         int banCount = store.getBanCount(normalizedTargetId);
-        trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + targetId + " messageRaw=" + text + " commentRaw=" + reason + " isPervert=0");
+        trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + targetId + " messageRaw=" + text + " commentRaw=" + reason + " isPervert=" + isPervert);
         if (isBlank(targetId) || "0".equals(targetId)) {
             trace("[REPORT_CREATE_WARN] source=request reportedRaw=" + targetId);
         }
@@ -63,7 +70,7 @@ public class PreReportHandler extends OsBaseHandler {
             trace("[REPORT_CREATE_WARN] source=request commentRaw=" + reason);
         }
         long complaintId = store.addComplaint(reporterId, reporterName, targetId, targetName, roomName, text, reason);
-        store.addReport(reporterRaw, reporterNorm, targetId, normalizedTargetId, text, reason, 0, banCount, 0);
+        store.addReport(reporterRaw, reporterNorm, targetId, normalizedTargetId, text, reason, isPervert, banCount, 0);
         trace("[REPORT_CREATE_STORE] id=" + complaintId + " reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId + " message=" + text + " comment=" + reason);
         if (isBlank(reporterNorm) || isBlank(normalizedTargetId)) {
             trace("[REPORT_CREATE_WARN] source=store reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId);
@@ -123,6 +130,37 @@ public class PreReportHandler extends OsBaseHandler {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private static int readInt(ISFSObject obj, String key, int def) {
+        try {
+            if (obj != null && obj.containsKey(key)) {
+                try { return obj.getInt(key); } catch (Exception ignored) {}
+                try { Double d = obj.getDouble(key); return d == null ? def : d.intValue(); } catch (Exception ignored2) {}
+            }
+        } catch (Exception ignored) {}
+        return def;
+    }
+
+    private String resolveTargetIdFromRoom(Room room, String targetName) {
+        if (room == null || isBlank(targetName)) {
+            return "";
+        }
+        try {
+            List<User> users = room.getUserList();
+            if (users == null) return "";
+            for (User u : users) {
+                if (u == null) continue;
+                String avatarName = HandlerUtils.readUserVarAsString(u, "avatarName");
+                if (targetName.equals(avatarName) || targetName.equals(u.getName())) {
+                    String avatarId = HandlerUtils.readUserVarAsString(u, "avatarID", "avatarId");
+                    if (!isBlank(avatarId)) {
+                        return avatarId;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
 
     private String readPropertyString(User user, String key) {
