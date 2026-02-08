@@ -32,21 +32,13 @@ public class InitHandler extends OsBaseHandler {
         trace("[INIT] ═══════════════════════════════════════════════════");
         trace("[INIT] Request from IP: " + userIP);
 
-        // Get or create PlayerID
-        String customID;
-        System.out.println("★ STEP 3.5: Checking zone property...");
-        if (getParentExtension().getParentZone().containsProperty(userIP + "_id")) {
-            customID = (String) getParentExtension().getParentZone().getProperty(userIP + "_id");
-            trace("[INIT] Found existing ID: " + customID);
-        } else {
-            customID = String.valueOf(System.currentTimeMillis());
-            getParentExtension().getParentZone().setProperty(userIP + "_id", customID);
-            trace("[INIT] Created new ID: " + customID);
-        }
+        // Get or create PlayerID (unique, sequential, starts at 1,000,000)
+        String customID = getOrCreatePlayerId(userIP);
         System.out.println("★ STEP 3.6: customID = " + customID);
         
         long ts = System.currentTimeMillis() / 1000;
-        double playerIDDouble = Double.parseDouble(customID);
+        long playerIdLong = Long.parseLong(customID);
+        int playerIdInt = (int) Math.min(Integer.MAX_VALUE, Math.max(Integer.MIN_VALUE, playerIdLong));
         
         // Check if user has saved data
         boolean hasSavedData = getParentExtension().getParentZone().containsProperty(userIP + "_active");
@@ -154,7 +146,7 @@ public class InitHandler extends OsBaseHandler {
         
         List<UserVariable> userVars = new ArrayList<>();
         userVars.add(new SFSUserVariable("gender", savedGender));
-        userVars.add(new SFSUserVariable("playerID", playerIDDouble));
+        userVars.add(new SFSUserVariable("playerID", playerIdInt));
         userVars.add(new SFSUserVariable("avatarName", savedName));
         userVars.add(new SFSUserVariable("universeKey", "w8"));
         userVars.add(new SFSUserVariable("imgPath", ""));
@@ -307,13 +299,13 @@ public class InitHandler extends OsBaseHandler {
         SFSObject sanilWallet = new SFSObject();
         sanilWallet.putUtfString("currency", "SANIL");
         sanilWallet.putInt("balance", 999999);
-        sanilWallet.putDouble("avatarID", playerIDDouble);
+        sanilWallet.putInt("avatarID", playerIdInt);
         walletArray.addSFSObject(sanilWallet);
         
         SFSObject diamondWallet = new SFSObject();
         diamondWallet.putUtfString("currency", "DIAMOND");
         diamondWallet.putInt("balance", 999999);
-        diamondWallet.putDouble("avatarID", playerIDDouble);
+        diamondWallet.putInt("avatarID", playerIdInt);
         walletArray.addSFSObject(diamondWallet);
         
         res.putSFSArray("wallet", walletArray);
@@ -400,6 +392,44 @@ public class InitHandler extends OsBaseHandler {
         
         trace("[INIT] ✅ Complete for: " + user.getName());
         trace("[INIT] ═══════════════════════════════════════════════════");
+    }
+
+    private String getOrCreatePlayerId(String userIP) {
+        String key = userIP + "_id";
+        Object existing = getParentExtension().getParentZone().getProperty(key);
+        Long existingId = parsePositiveLong(existing);
+        long startId = 1_000_000L;
+        if (existingId != null && existingId >= startId) {
+            trace("[INIT] Found existing ID: " + existingId);
+            return String.valueOf(existingId);
+        }
+
+        Object counterObj = getParentExtension().getParentZone().getProperty("player_id_counter");
+        Long counter = parsePositiveLong(counterObj);
+        long nextId = counter != null && counter >= startId ? counter + 1 : startId;
+        getParentExtension().getParentZone().setProperty("player_id_counter", nextId);
+        getParentExtension().getParentZone().setProperty(key, String.valueOf(nextId));
+        trace("[INIT] Created new ID: " + nextId);
+        return String.valueOf(nextId);
+    }
+
+    private Long parsePositiveLong(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number) {
+            long num = ((Number) value).longValue();
+            return num > 0 ? num : null;
+        }
+        if (value instanceof String) {
+            String str = ((String) value).trim();
+            if (str.isEmpty()) return null;
+            try {
+                long num = Long.parseLong(str);
+                return num > 0 ? num : null;
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private ISFSArray buildDefaultClothesItems(String gender) {
