@@ -93,7 +93,10 @@ public class WalkFinalRequestHandler extends OsBaseHandler {
             String roomName = user != null && user.getLastJoinedRoom() != null ? user.getLastJoinedRoom().getName() : "null";
             int roomId = user != null && user.getLastJoinedRoom() != null ? user.getLastJoinedRoom().getId() : -1;
             int clientRid = getClientRid(params);
-            String avatarId = readUserVarAsString(user, "avatarID", "avatarId");
+            String avatarId = readUserVarAsString(user, "avatarID", "avatarId", "playerID", "playerId");
+            if ("null".equals(avatarId) || "invalid".equals(avatarId)) {
+                avatarId = user.getName();
+            }
             String playerId = readUserVarAsString(user, "playerID", "playerId");
             String pos = readString(data, "position");
             if (pos == null || "missing".equals(pos)) {

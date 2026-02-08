@@ -29,7 +29,11 @@ public class ChangeStatusMessageHandler extends BaseClientRequestHandler {
         // Broadcast status change to buddies
         SFSObject broadcast = new SFSObject();
         broadcast.putUtfString("cmd", "buddy.changestatusmessage");
-        broadcast.putUtfString("avatarID", user.getName());
+        String avatarId = HandlerUtils.readUserVarAsString(user, "avatarID", "avatarId", "playerID", "playerId");
+        if (avatarId == null || avatarId.trim().isEmpty()) {
+            avatarId = user.getName();
+        }
+        broadcast.putUtfString("avatarID", avatarId);
         broadcast.putUtfString("message", message);
         
         getParentExtension().send("buddy.changestatusmessage", broadcast, user);

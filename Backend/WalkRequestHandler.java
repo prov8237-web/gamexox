@@ -89,7 +89,11 @@ public class WalkRequestHandler extends OsBaseHandler {
                 // إرسال بيانات الحركة للاعبين الآخرين
                 SFSObject moveData = new SFSObject();
                 moveData.putUtfString("type", "PLAYER_MOVING");
-                moveData.putUtfString("avatarID", user.getName());
+                String avatarId = readUserVarAsString(user, "avatarID", "avatarId", "playerID", "playerId");
+                if ("null".equals(avatarId) || "invalid".equals(avatarId)) {
+                    avatarId = user.getName();
+                }
+                moveData.putUtfString("avatarID", avatarId);
                 moveData.putUtfString("avatarName", readUserVarAsString(user, "avatarName", user.getName()));
                 moveData.putUtfString("target", target);
                 moveData.putInt("direction", direction);

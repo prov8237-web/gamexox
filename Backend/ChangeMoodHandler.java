@@ -25,12 +25,16 @@ public class ChangeMoodHandler extends BaseClientRequestHandler {
         ISFSObject res = new SFSObject();
         res.putUtfString("status", "ok");
         res.putInt("mood", mood);
-        res.putUtfString("avatarID", user.getName());
+        String avatarId = HandlerUtils.readUserVarAsString(user, "avatarID", "avatarId", "playerID", "playerId");
+        if (avatarId == null || avatarId.trim().isEmpty()) {
+            avatarId = user.getName();
+        }
+        res.putUtfString("avatarID", avatarId);
         
         // Broadcast mood change to buddies
         SFSObject broadcast = new SFSObject();
         broadcast.putUtfString("cmd", "buddy.moodchanged");
-        broadcast.putUtfString("avatarID", user.getName());
+        broadcast.putUtfString("avatarID", avatarId);
         broadcast.putInt("mood", mood);
         
         getParentExtension().send("buddy.moodchanged", broadcast, user);

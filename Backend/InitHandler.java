@@ -147,6 +147,7 @@ public class InitHandler extends OsBaseHandler {
         List<UserVariable> userVars = new ArrayList<>();
         userVars.add(new SFSUserVariable("gender", savedGender));
         userVars.add(new SFSUserVariable("playerID", playerIdInt));
+        userVars.add(new SFSUserVariable("avatarID", customID));
         userVars.add(new SFSUserVariable("avatarName", savedName));
         userVars.add(new SFSUserVariable("universeKey", "w8"));
         userVars.add(new SFSUserVariable("imgPath", ""));
@@ -263,7 +264,7 @@ public class InitHandler extends OsBaseHandler {
         SFSObject res = new SFSObject();
         res.putLong("ts", ts);
         res.putUtfString("playerID", customID);
-        String avatarKey = ProtocolConfig.chatEnabled() ? user.getName() : customID;
+        String avatarKey = customID;
         res.putUtfString("selectedAvatarID", avatarKey);
         res.putInt("emailActive", 1);
         res.putBool("guest", false);
