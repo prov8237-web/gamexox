@@ -82,6 +82,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
                 }
                 String traceId = "enforce-login-" + user.getName() + "-" + System.currentTimeMillis();
                 SFSObject banned = HandlerUtils.buildBannedPayload("LOGIN", match, now, traceId);
+                trace(buildSendLog("banned", traceId, user, banned));
                 ext.send("banned", banned, user);
                 trace("[MOD_BAN_SEND] trace=" + traceId + " type=LOGIN timeLeft=" + banned.getInt("timeLeft"));
                 // disconnect
@@ -107,6 +108,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
                 }
                 String traceId = "enforce-chat-" + user.getName() + "-" + System.currentTimeMillis();
                 SFSObject banned = HandlerUtils.buildBannedPayload("CHAT", match, now, traceId);
+                trace(buildSendLog("banned", traceId, user, banned));
                 ext.send("banned", banned, user);
                 trace("[MOD_BAN_SEND] trace=" + traceId + " type=CHAT timeLeft=" + banned.getInt("timeLeft"));
                 getApi().disconnectUser(user);
@@ -310,6 +312,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
                     }
                     String traceId = "enforce-chat-msg-" + user.getName() + "-" + System.currentTimeMillis();
                     SFSObject banned = HandlerUtils.buildBannedPayload("CHAT", match, now, traceId);
+                    trace(buildSendLog("banned", traceId, user, banned));
                     ext.send("banned", banned, user);
                     trace("[MOD_BAN_SEND] trace=" + traceId + " type=CHAT timeLeft=" + banned.getInt("timeLeft"));
                     trace("🚫 Blocked public chat message due to CHAT ban: " + user.getName());
@@ -601,5 +604,38 @@ public class ServerEventHandler extends BaseServerEventHandler {
             return "[]";
         }
         return keys.toString();
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }

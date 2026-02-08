@@ -124,8 +124,10 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
     private boolean warnTarget(User target, String reason, String traceId) {
         if (target == null) return false;
-        String msg = reason != null ? reason : "WARNING";
-        boolean ok = sendAdminMessage(target, "Municipalty Message", msg, null, traceId);
+        String msg = safeAdminMessage(reason, "Warning.");
+        SFSObject payload = buildAdminMessagePayload("Municipalty Message", msg, traceId, null);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        boolean ok = sendAdminMessage(target, payload);
         trace("[MOD_WARN_SEND] trace=" + traceId + " sent=" + (ok ? 1 : 0));
         return ok;
     }
@@ -141,6 +143,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
         long now = System.currentTimeMillis() / 1000;
         SFSObject payload = HandlerUtils.buildBannedPayload(banType, rec, now, traceId);
+        trace(buildSendLog("banned", traceId, target, payload));
         boolean sent = false;
         try {
             getParentExtension().send("banned", payload, target);
@@ -158,21 +161,9 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
     private boolean sendAdminMessage(User target, String title, String message, String endDate, String traceId) {
         if (target == null) return false;
-        SFSObject payload = new SFSObject();
-        payload.putUtfString("title", title);
-        payload.putUtfString("message", message);
-        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
-        payload.putUtfString("trace", traceId);
-        if (endDate != null) {
-            payload.putUtfString("endDate", endDate);
-        }
-        boolean ok = false;
-        try {
-            getParentExtension().send("adminMessage", payload, target);
-            ok = true;
-        } catch (Exception ignored) {}
-        trace("[MOD_SEND_ADMINMSG] trace=" + traceId + " ok=" + ok + " payloadKeys=" + payload.getKeys());
-        return ok;
+        SFSObject payload = buildAdminMessagePayload(title, message, traceId, endDate);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        return sendAdminMessage(target, payload);
     }
 
     private void sendBanAdminMessage(User target, String banType, String endDate, long reportId, String traceId) {
@@ -185,7 +176,9 @@ public class ComplaintActionHandler extends OsBaseHandler {
         boolean ok = false;
         String method = "disconnect";
         int[] retries = new int[]{0};
-        sendAdminMessage(target, "Municipalty Message", "You were kicked.", null, traceId);
+        SFSObject payload = buildAdminMessagePayload("Municipalty Message", "You were kicked.", traceId, null);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        sendAdminMessage(target, payload);
         try {
             getApi().disconnectUser(target);
             ok = true;
@@ -198,6 +191,76 @@ public class ComplaintActionHandler extends OsBaseHandler {
         scheduleKickRetry(target, traceId, retries);
         trace("[MOD_KICK] trace=" + traceId + " target=" + target.getName() + " method=" + method + " disconnected=" + ok + " retry=" + retries[0]);
         return ok;
+    }
+
+    private boolean sendAdminMessage(User target, SFSObject payload) {
+        if (target == null || payload == null) return false;
+        boolean ok = false;
+        try {
+            getParentExtension().send("adminMessage", payload, target);
+            ok = true;
+        } catch (Exception ignored) {}
+        trace("[MOD_SEND_ADMINMSG] trace=" + payload.getUtfString("trace") + " ok=" + ok + " payloadKeys=" + payload.getKeys());
+        return ok;
+    }
+
+    private SFSObject buildAdminMessagePayload(String title, String message, String traceId, String endDate) {
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("title", safeAdminTitle(title));
+        payload.putUtfString("message", safeAdminMessage(message, "Warning."));
+        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+        payload.putUtfString("trace", traceId == null ? "" : traceId);
+        if (endDate != null) {
+            payload.putUtfString("endDate", endDate);
+        }
+        return payload;
+    }
+
+    private String safeAdminTitle(String title) {
+        if (title == null || title.trim().isEmpty() || "Ban Info".equalsIgnoreCase(title.trim())) {
+            return "Municipalty Message";
+        }
+        return title;
+    }
+
+    private String safeAdminMessage(String message, String fallback) {
+        if (message == null) return fallback;
+        String trimmed = message.trim();
+        if (trimmed.isEmpty()) return fallback;
+        return trimmed;
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     private void scheduleKickRetry(User target, String traceId, int[] retries) {

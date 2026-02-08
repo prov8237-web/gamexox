@@ -32,19 +32,15 @@ public class WarnUserHandler extends OsBaseHandler {
 
         if (target != null) {
             String traceId = "warnUser-" + target.getName() + "-" + System.currentTimeMillis();
+            String safeMessage = safeAdminMessage(message, "Warning.");
             SFSObject adminMessage = new SFSObject();
             adminMessage.putUtfString("title", "Municipalty Message");
-            adminMessage.putUtfString("message", message);
+            adminMessage.putUtfString("message", safeMessage);
             adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
             adminMessage.putUtfString("trace", traceId);
+            trace(buildSendLog("adminMessage", traceId, target, adminMessage));
             getParentExtension().send("adminMessage", adminMessage, target);
             trace("[MOD_WARN_SEND] trace=" + traceId + " target=" + target.getName());
-
-            // legacy (do not depend on it)
-            SFSObject cmd2user = new SFSObject();
-            cmd2user.putUtfString("type", "WARN");
-            cmd2user.putUtfString("message", message);
-            getParentExtension().send("cmd2user", cmd2user, target);
 
             getParentExtension().send("warnUser", res, target);
         }
@@ -76,5 +72,45 @@ public class WarnUserHandler extends OsBaseHandler {
             }
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private String safeAdminMessage(String message, String fallback) {
+        if (message == null) return fallback;
+        String trimmed = message.trim();
+        if (trimmed.isEmpty()) return fallback;
+        return trimmed;
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }

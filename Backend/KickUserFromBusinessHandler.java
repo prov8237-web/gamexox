@@ -26,25 +26,21 @@ public class KickUserFromBusinessHandler extends OsBaseHandler {
         res.putBool("ok", target != null);
 
         String traceId = "kickUserFromBusiness-" + targetAvatarId + "-" + System.currentTimeMillis();
+        int[] retries = new int[]{0};
         if (target != null) {
+            SFSObject adminMessage = new SFSObject();
+            adminMessage.putUtfString("title", "Municipalty Message");
+            adminMessage.putUtfString("message", "You were kicked.");
+            adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+            adminMessage.putUtfString("trace", traceId);
+            trace(buildSendLog("adminMessage", traceId, target, adminMessage));
             try {
-                SFSObject adminMessage = new SFSObject();
-                adminMessage.putUtfString("title", "Municipalty Message");
-                adminMessage.putUtfString("message", "You were kicked.");
-                adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
-                adminMessage.putUtfString("trace", traceId);
                 getParentExtension().send("adminMessage", adminMessage, target);
             } catch (Exception ignored) {}
-            try {
-                // legacy notification (best-effort)
-                SFSObject msg = new SFSObject();
-                msg.putUtfString("type", "KICK");
-                msg.putUtfString("message", "You were kicked.");
-                getParentExtension().send("cmd2user", msg, target);
-            } catch (Exception ignored) {}
             try { getApi().disconnectUser(target); } catch (Exception ignored) {}
+            scheduleKickRetry(target, traceId, retries);
         }
-        trace("[MOD_KICK] trace=" + traceId + " target=" + (target != null ? target.getName() : "null") + " disconnected=" + (target != null));
+        trace("[MOD_KICK] trace=" + traceId + " target=" + (target != null ? target.getName() : "null") + " disconnected=" + (target != null) + " retry=" + retries[0]);
 
         sendResponseWithRid("kickUserFromBusiness", res, sender, rid);
     }
@@ -71,5 +67,58 @@ public class KickUserFromBusinessHandler extends OsBaseHandler {
             }
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private void scheduleKickRetry(User target, String traceId, int[] retries) {
+        if (target == null) return;
+        Zone z = getParentExtension().getParentZone();
+        if (z == null) return;
+        String name = target.getName();
+        new Thread(() -> {
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException ignored) {}
+            User stillThere = z.getUserByName(name);
+            if (stillThere != null) {
+                retries[0] = retries[0] + 1;
+                try {
+                    getApi().disconnectUser(stillThere);
+                } catch (Exception ignored) {}
+                trace("[MOD_KICK_RETRY] trace=" + traceId + " count=" + retries[0]);
+            }
+        }).start();
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }
