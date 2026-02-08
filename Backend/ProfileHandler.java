@@ -28,6 +28,10 @@ public class ProfileHandler extends OsBaseHandler {
         int rid = extractRid(params);
         trace("### PROFILE_HANDLER_V2 HIT ### handler=ProfileHandler rid=" + rid + " user=" + user.getName());
         trace("[PROFILE] Request avatarID=" + avatarId + " user=" + user.getName());
+        try {
+            user.setProperty("lastProfileAvatarId", avatarId);
+            user.setProperty("lastProfileAvatarName", avatarName);
+        } catch (Exception ignored) {}
 
         SFSObject res = new SFSObject();
         res.putUtfString("avatarName", avatarName);  // <-- هنا التغيير: استخدم avatarName بدلاً من "اَلمُشاغب"
