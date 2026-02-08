@@ -50,8 +50,13 @@ public class ComplaintListHandler extends OsBaseHandler {
         List<InMemoryStore.ReportRecord> list = store.listReports(status, limit);
         ISFSArray arr = new SFSArray();
         for (InMemoryStore.ReportRecord r : list) {
-            String reporterOut = r.reporterIdRaw != null && !r.reporterIdRaw.isEmpty() ? r.reporterIdRaw : r.reporterId;
-            String reportedOut = r.reportedIdRaw != null && !r.reportedIdRaw.isEmpty() ? r.reportedIdRaw : r.reportedId;
+            String reporterOut = chooseNonZero(r.reporterIdRaw, r.reporterIdNorm, r.reporterId);
+            String reportedOut = chooseNonZero(r.reportedIdRaw, r.reportedIdNorm, r.reportedId);
+            if (isZero(reporterOut) || isZero(reportedOut)) {
+                System.out.println("[RPT_WARN_ZERO] reportId=" + r.reportId
+                        + " reporter=" + reporterOut
+                        + " reported=" + reportedOut);
+            }
             SFSObject item = new SFSObject();
             item.putLong("id", r.reportId);
             item.putUtfString("message", r.message == null ? "" : r.message);
@@ -80,6 +85,22 @@ public class ComplaintListHandler extends OsBaseHandler {
             System.out.println("[COMPLAINTLIST_BUILD] count=0");
         }
         return res;
+    }
+
+    private static String chooseNonZero(String... values) {
+        if (values == null) return "";
+        for (String v : values) {
+            if (v == null) continue;
+            String trimmed = v.trim();
+            if (trimmed.isEmpty()) continue;
+            if ("0".equals(trimmed)) continue;
+            return trimmed;
+        }
+        return "";
+    }
+
+    private static boolean isZero(String value) {
+        return value == null || value.trim().isEmpty() || "0".equals(value.trim());
     }
 
     private static String readString(ISFSObject obj, String key, String def) {

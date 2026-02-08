@@ -35,11 +35,14 @@ public class PreReportHandler extends OsBaseHandler {
         String reporterId = reporterNorm.isEmpty() ? reporterRaw : reporterNorm;
         String reporterName = st.getAvatarName() != null ? st.getAvatarName() : sender.getName();
 
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            targetId = resolveTargetIdFallback(targetName);
+        }
         String normalizedTargetId = HandlerUtils.normalizeAvatarId(targetId);
         int banCount = store.getBanCount(normalizedTargetId);
         trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + targetId + " messageRaw=" + text + " commentRaw=" + reason + " isPervert=0");
         if (isBlank(targetId) || "0".equals(targetId)) {
-            trace("[REPORT_CREATE_WARN] source=request reportedRaw=" + targetId);
+            trace("[RPT_WARN_ZERO] trace=prereport-" + sender.getName() + "-" + System.currentTimeMillis() + " reportedRaw=" + targetId);
         }
         if (isBlank(text) || "0".equals(text)) {
             trace("[REPORT_CREATE_WARN] source=request messageRaw=" + text);
@@ -47,6 +50,14 @@ public class PreReportHandler extends OsBaseHandler {
         if (isBlank(reason) || "0".equals(reason)) {
             trace("[REPORT_CREATE_WARN] source=request commentRaw=" + reason);
         }
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            SFSObject res = new SFSObject();
+            res.putBool("ok", false);
+            res.putUtfString("errorCode", "MISSING_ITEM");
+            sendResponseWithRid(command, res, sender, rid);
+            return;
+        }
+
         long complaintId = store.addComplaint(reporterId, reporterName, targetId, targetName, roomName, text, reason);
         store.addReport(reporterRaw, reporterNorm, targetId, normalizedTargetId, text, reason, 0, banCount, 0);
         trace("[REPORT_CREATE_STORE] id=" + complaintId + " reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId + " message=" + text + " comment=" + reason);
@@ -108,5 +119,22 @@ public class PreReportHandler extends OsBaseHandler {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String resolveTargetIdFallback(String targetName) {
+        if (isBlank(targetName)) {
+            return "";
+        }
+        try {
+            Zone z = getZone();
+            if (z != null) {
+                User byName = z.getUserByName(targetName);
+                if (byName != null) {
+                    String avatarIdVar = HandlerUtils.readUserVarAsString(byName, "avatarID", "avatarId", "avatarName");
+                    return avatarIdVar != null ? avatarIdVar : byName.getName();
+                }
+            }
+        } catch (Exception ignored) {}
+        return targetName;
     }
 }

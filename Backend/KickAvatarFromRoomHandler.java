@@ -22,8 +22,18 @@ public class KickAvatarFromRoomHandler extends OsBaseHandler {
         res.putUtfString("targetId", avatarId);
         res.putBool("ok", target != null);
 
+        String traceId = "kickAvatarFromRoom-" + avatarId + "-" + System.currentTimeMillis();
         // best effort notify + kick
         if (target != null) {
+            try {
+                SFSObject adminMessage = new SFSObject();
+                adminMessage.putUtfString("title", "Municipalty Message");
+                adminMessage.putUtfString("message", "You were kicked.");
+                adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+                adminMessage.putUtfString("trace", traceId);
+                getParentExtension().send("adminMessage", adminMessage, target);
+            } catch (Exception ignored) {}
+
             try {
                 SFSObject msg = new SFSObject();
                 msg.putUtfString("type", "KICK");
@@ -36,6 +46,7 @@ public class KickAvatarFromRoomHandler extends OsBaseHandler {
             } catch (Exception ignored) {}
         }
 
+        trace("[MOD_KICK] trace=" + traceId + " target=" + (target != null ? target.getName() : "null") + " disconnected=" + (target != null));
         trace("RID_CHECK cmd=kickAvatarFromRoom reqRid=" + rid + " resRid=" + rid + " avatarID=" + avatarId);
         sendResponseWithRid("kickAvatarFromRoom", res, sender, rid);
     }

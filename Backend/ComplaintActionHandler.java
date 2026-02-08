@@ -22,7 +22,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (!ComplaintListHandler.isSecurityUser(sender, store)) {
             SFSObject denied = new SFSObject();
             denied.putBool("ok", false);
-            denied.putUtfString("error", "NO_PERMISSION");
+            denied.putUtfString("errorCode", "NO_PERMISSION");
             sendResponseWithRid("complaintaction", denied, sender, rid);
             return;
         }
@@ -46,7 +46,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (report == null && complaint == null) {
             SFSObject res = new SFSObject();
             res.putBool("ok", false);
-            res.putUtfString("error", "NOT_FOUND");
+            res.putUtfString("errorCode", "NOT_FOUND");
             sendResponseWithRid("complaintaction", res, sender, rid);
             return;
         }
@@ -68,12 +68,12 @@ public class ComplaintActionHandler extends OsBaseHandler {
             if (resolveResult.user == null) {
                 SFSObject res = new SFSObject();
                 res.putBool("ok", false);
-                res.putUtfString("reason", "TARGET_NOT_FOUND");
+                res.putUtfString("errorCode", "TARGET_NOT_FOUND");
                 res.putUtfString("trace", modTraceId);
                 res.putLong("id", id);
                 res.putUtfString("action", action);
                 sendResponseWithRid("complaintaction", res, sender, rid);
-                trace("[MOD_FAIL] trace=" + modTraceId + " reason=TARGET_NOT_FOUND");
+                trace("[MOD_TGT_FAIL] trace=" + modTraceId + " reason=TARGET_NOT_FOUND");
                 return;
             }
         }
@@ -111,6 +111,9 @@ public class ComplaintActionHandler extends OsBaseHandler {
         res.putBool("ok", ok);
         res.putLong("id", id);
         res.putUtfString("action", action);
+        if (!ok) {
+            res.putUtfString("errorCode", "FAILED");
+        }
         sendResponseWithRid("complaintaction", res, sender, rid);
 
         if (ok) {
@@ -123,7 +126,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (target == null) return false;
         String msg = reason != null ? reason : "WARNING";
         boolean ok = sendAdminMessage(target, "Municipalty Message", msg, null, traceId);
-        trace("[MOD_WARN] trace=" + traceId + " sent=" + (ok ? 1 : 0));
+        trace("[MOD_WARN_SEND] trace=" + traceId + " sent=" + (ok ? 1 : 0));
         return ok;
     }
 
@@ -136,21 +139,15 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (rec == null) return false;
         store.incrementBanCount(HandlerUtils.normalizeAvatarId(storedReportedId));
 
-        long startMs = rec.startEpochSec * 1000L;
-        long endMs = rec.endEpochSec < 0 ? -1 : rec.endEpochSec * 1000L;
-        int timeLeft = rec.timeLeftSec(System.currentTimeMillis() / 1000);
-        SFSObject payload = new SFSObject();
-        payload.putUtfString("type", banType);
-        payload.putLong("startDate", startMs);
-        payload.putLong("endDate", endMs);
-        payload.putInt("timeLeft", timeLeft);
-        payload.putUtfString("trace", traceId);
+        long now = System.currentTimeMillis() / 1000;
+        SFSObject payload = HandlerUtils.buildBannedPayload(banType, rec, now, traceId);
         boolean sent = false;
         try {
             getParentExtension().send("banned", payload, target);
             sent = true;
         } catch (Exception ignored) {}
-        trace("[MOD_BAN_SEND] trace=" + traceId + " type=" + banType + " durationSec=" + duration + " endMs=" + endMs + " ok=" + sent);
+        String endDateOut = payload.containsKey("endDate") ? payload.getUtfString("endDate") : null;
+        trace("[MOD_BAN_SEND] trace=" + traceId + " type=" + banType + " durationSec=" + duration + " timeLeft=" + payload.getInt("timeLeft") + " endDate=" + endDateOut + " ok=" + sent);
         sendBanAdminMessage(target, banType, rec.endDate, reportId, traceId);
 
         if ("LOGIN".equalsIgnoreCase(banType) || "CHAT".equalsIgnoreCase(banType)) {
@@ -180,21 +177,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
 
     private void sendBanAdminMessage(User target, String banType, String endDate, long reportId, String traceId) {
         if (target == null) return;
-        SFSObject payload = new SFSObject();
-        payload.putUtfString("title", "Ban Info");
-        payload.putUtfString("message", "You have been banned by the moderator.");
-        payload.putUtfString("swear", banType);
-        payload.putUtfString("swearTime", String.valueOf(System.currentTimeMillis() / 1000));
-        if (endDate != null) {
-            payload.putUtfString("endDate", endDate);
-        }
-        payload.putLong("reportID", reportId);
-        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
-        payload.putUtfString("trace", traceId);
-        try {
-            getParentExtension().send("adminMessage", payload, target);
-        } catch (Exception ignored) {}
-        trace("[MOD_SEND_ADMINMSG] trace=" + traceId + " ok=true payloadKeys=" + payload.getKeys());
+        sendAdminMessage(target, "Municipalty Message", "You have been banned by the moderator.", endDate, traceId);
     }
 
     private boolean kickUserHard(User target, String traceId) {
@@ -202,6 +185,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         boolean ok = false;
         String method = "disconnect";
         int[] retries = new int[]{0};
+        sendAdminMessage(target, "Municipalty Message", "You were kicked.", null, traceId);
         try {
             getApi().disconnectUser(target);
             ok = true;
@@ -212,7 +196,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
             }
         }
         scheduleKickRetry(target, traceId, retries);
-        trace("[MOD_KICK] trace=" + traceId + " method=" + method + " ok=" + ok + " retry=" + retries[0]);
+        trace("[MOD_KICK] trace=" + traceId + " target=" + target.getName() + " method=" + method + " disconnected=" + ok + " retry=" + retries[0]);
         return ok;
     }
 

@@ -95,4 +95,21 @@ public final class HandlerUtils {
         }
         return "";
     }
+
+    public static SFSObject buildBannedPayload(String type, InMemoryStore.BanRecord record, long nowEpochSec, String traceId) {
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("type", type == null ? "CHAT" : type);
+        int timeLeft = record == null ? -1 : record.timeLeftSec(nowEpochSec);
+        payload.putInt("timeLeft", timeLeft);
+        String startDate = record == null ? null : record.startDate;
+        String endDate = record == null ? null : record.endDate;
+        if (startDate != null) {
+            payload.putUtfString("startDate", startDate);
+        }
+        if (endDate != null) {
+            payload.putUtfString("endDate", endDate);
+        }
+        payload.putUtfString("trace", traceId == null ? "" : traceId);
+        return payload;
+    }
 }

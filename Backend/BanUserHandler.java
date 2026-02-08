@@ -62,8 +62,11 @@ public class BanUserHandler extends OsBaseHandler {
 
         // notify target (client BanModel listens "banned")
         if (rec != null) {
-            SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
+            long now = System.currentTimeMillis() / 1000;
+            String traceId = "banUser-" + target.getName() + "-" + System.currentTimeMillis();
+            SFSObject payload = HandlerUtils.buildBannedPayload(banType, rec, now, traceId);
             getParentExtension().send("banned", payload, target);
+            trace("[MOD_BAN_SEND] trace=" + traceId + " type=" + banType + " timeLeft=" + payload.getInt("timeLeft"));
 
             // if LOGIN ban: disconnect immediately
             if ("LOGIN".equalsIgnoreCase(banType)) {

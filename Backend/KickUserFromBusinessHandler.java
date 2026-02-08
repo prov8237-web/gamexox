@@ -25,9 +25,18 @@ public class KickUserFromBusinessHandler extends OsBaseHandler {
         res.putUtfString("targetId", targetAvatarId);
         res.putBool("ok", target != null);
 
+        String traceId = "kickUserFromBusiness-" + targetAvatarId + "-" + System.currentTimeMillis();
         if (target != null) {
             try {
-                // notify target before kick (best-effort)
+                SFSObject adminMessage = new SFSObject();
+                adminMessage.putUtfString("title", "Municipalty Message");
+                adminMessage.putUtfString("message", "You were kicked.");
+                adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+                adminMessage.putUtfString("trace", traceId);
+                getParentExtension().send("adminMessage", adminMessage, target);
+            } catch (Exception ignored) {}
+            try {
+                // legacy notification (best-effort)
                 SFSObject msg = new SFSObject();
                 msg.putUtfString("type", "KICK");
                 msg.putUtfString("message", "You were kicked.");
@@ -35,6 +44,7 @@ public class KickUserFromBusinessHandler extends OsBaseHandler {
             } catch (Exception ignored) {}
             try { getApi().disconnectUser(target); } catch (Exception ignored) {}
         }
+        trace("[MOD_KICK] trace=" + traceId + " target=" + (target != null ? target.getName() : "null") + " disconnected=" + (target != null));
 
         sendResponseWithRid("kickUserFromBusiness", res, sender, rid);
     }

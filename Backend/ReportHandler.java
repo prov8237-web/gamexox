@@ -22,7 +22,11 @@ public class ReportHandler extends OsBaseHandler {
 
         trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + reportedRaw + " messageRaw=" + message + " commentRaw=" + comment + " isPervert=" + isPervert);
         if (isBlank(reportedRaw) || "0".equals(reportedRaw)) {
-            trace("[REPORT_CREATE_WARN] source=request reportedRaw=" + reportedRaw);
+            reportedRaw = resolveReportedIdFallback(data, sender);
+            reportedNorm = HandlerUtils.normalizeAvatarId(reportedRaw);
+        }
+        if (isBlank(reportedRaw) || "0".equals(reportedRaw)) {
+            trace("[RPT_WARN_ZERO] trace=report-" + sender.getName() + "-" + System.currentTimeMillis() + " reportedRaw=" + reportedRaw);
         }
         if (isBlank(message) || "0".equals(message)) {
             trace("[REPORT_CREATE_WARN] source=request messageRaw=" + message);
@@ -38,7 +42,7 @@ public class ReportHandler extends OsBaseHandler {
         SFSObject res = new SFSObject();
         res.putInt("nextRequest", 0);
 
-        if (reportedNorm == null || reportedNorm.trim().isEmpty() || "unknown".equalsIgnoreCase(reportedNorm)) {
+        if (reportedNorm == null || reportedNorm.trim().isEmpty() || "unknown".equalsIgnoreCase(reportedNorm) || "0".equals(reportedRaw)) {
             res.putUtfString("errorCode", "MISSING_ITEM");
             sendResponseWithRid("report", res, sender, rid);
             trace("[REPORT_SUBMIT_RES] reporter=" + reporterRaw + " errorCode=MISSING_ITEM");
@@ -79,6 +83,24 @@ public class ReportHandler extends OsBaseHandler {
             raw = sender != null ? sender.getName() : "";
         }
         return raw;
+    }
+
+    private String resolveReportedIdFallback(ISFSObject data, User sender) {
+        String nameCandidate = HandlerUtils.readStringAny(data, "reportedAvatarName", "avatarName", "targetName", "toName", "name");
+        if (isBlank(nameCandidate)) {
+            return "";
+        }
+        try {
+            Zone zone = getZone();
+            if (zone != null) {
+                User byName = zone.getUserByName(nameCandidate);
+                if (byName != null) {
+                    String avatarIdVar = HandlerUtils.readUserVarAsString(byName, "avatarID", "avatarId", "avatarName");
+                    return avatarIdVar != null ? avatarIdVar : byName.getName();
+                }
+            }
+        } catch (Exception ignored) {}
+        return nameCandidate;
     }
 
     private static int readInt(ISFSObject obj, String key, int def) {

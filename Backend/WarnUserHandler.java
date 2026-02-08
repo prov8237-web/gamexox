@@ -31,14 +31,21 @@ public class WarnUserHandler extends OsBaseHandler {
         sendResponseWithRid("warnUser", res, sender, rid);
 
         if (target != null) {
-            // try multiple client listeners:
-            // 1) "cmd2user" channel is widely supported
+            String traceId = "warnUser-" + target.getName() + "-" + System.currentTimeMillis();
+            SFSObject adminMessage = new SFSObject();
+            adminMessage.putUtfString("title", "Municipalty Message");
+            adminMessage.putUtfString("message", message);
+            adminMessage.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+            adminMessage.putUtfString("trace", traceId);
+            getParentExtension().send("adminMessage", adminMessage, target);
+            trace("[MOD_WARN_SEND] trace=" + traceId + " target=" + target.getName());
+
+            // legacy (do not depend on it)
             SFSObject cmd2user = new SFSObject();
             cmd2user.putUtfString("type", "WARN");
             cmd2user.putUtfString("message", message);
             getParentExtension().send("cmd2user", cmd2user, target);
 
-            // 2) also send "warnUser" directly
             getParentExtension().send("warnUser", res, target);
         }
     }

@@ -6,25 +6,32 @@
 - `docs/backend/moderation_patch_notes.md`
 
 ## Summary
-- Added admin warning delivery via `adminMessage` (with `title`, `message`, `ts`) alongside existing `cmd2user` warnings.
-- Added ban enforcement logs and admin ban notifications, and disconnect enforcement for active CHAT/LOGIN bans.
-- Normalized target resolution during moderation actions to support numeric IDs and `Guest#` identifiers.
-- Added login-time ban enforcement for CHAT bans with `[MOD_BAN_ENFORCE]` logging.
+- Warn/kick/ban notifications now emit `adminMessage` (title `Municipalty Message`) so the client displays visible alerts without relying on `cmd2user`.
+- `banned` payloads are standardized to string dates (`startDate`/`endDate`) + `timeLeft` (int) + `trace`, matching the client `BanModel` contract.
+- Complaint actions and report creation reject `reportedAvatarID`=`0` and log `[RPT_WARN_ZERO]` instead of storing zero IDs.
+- Kick actions issue an `adminMessage` before disconnect, with `[MOD_KICK]` logging and retry behavior preserved.
 
 ## Manual test steps
 1. **Warning**
    - From the reports inbox, trigger a warning.
-   - Expected: victim receives `adminMessage` popup; logs include `[MOD_REQ]`, `[MOD_TGT]`, `[MOD_SEND_ADMINMSG]`, `[MOD_WARN]`.
-2. **Ban**
-   - Trigger a 60-second ban.
-   - Expected: victim receives `banned` event (`startDate`, `endDate`, `timeLeft`, `type`, `trace`) and `adminMessage`; logs include `[MOD_REQ]`, `[MOD_TGT]`, `[MOD_BAN_SEND]`, and `[MOD_BAN_ENFORCE]` on re-login.
-3. **Kick**
+   - Expected client: `adminMessage` popup with title `Municipalty Message`.
+   - Expected logs: `[MOD_REQ]`, `[MOD_TGT]`, `[MOD_SEND_ADMINMSG]`, `[MOD_WARN_SEND]`.
+2. **Kick**
    - Trigger a kick action.
-   - Expected: victim disconnects (client `connectionLost`); logs include `[MOD_REQ]`, `[MOD_TGT]`, and `[MOD_KICK]` (and optional `[MOD_KICK_RETRY]`).
+   - Expected client: `adminMessage` popup, then `connectionLost`.
+   - Expected logs: `[MOD_REQ]`, `[MOD_TGT]`, `[MOD_KICK]` (and optional `[MOD_KICK_RETRY]`).
+3. **CHAT ban (60s)**
+   - Trigger a 60-second chat ban.
+   - Expected client: `banned` event with `type=CHAT`, `timeLeft=60`, `startDate`/`endDate` strings, then disconnect.
+   - Expected logs: `[MOD_BAN_SEND]` and `[MOD_BAN_ENFORCE]` on re-login/chat attempt.
+4. **LOGIN ban (60s)**
+   - Trigger a 60-second login ban.
+   - Expected client: `banned` event with `type=LOGIN`, `timeLeft=60`, `startDate`/`endDate` strings, then disconnect.
+   - Expected logs: `[MOD_BAN_SEND]` and `[MOD_BAN_ENFORCE]` on re-login.
 
 ## Expected logs
 - `[MOD_REQ]`, `[MOD_TGT]`, `[MOD_SEND_ADMINMSG]`, `[MOD_FAIL]`
-- `[MOD_WARN]`, `[MOD_BAN_SEND]`, `[MOD_BAN_ENFORCE]`
+- `[MOD_WARN_SEND]`, `[MOD_BAN_SEND]`, `[MOD_BAN_ENFORCE]`
 - `[MOD_KICK]`, `[MOD_KICK_RETRY]`
 - `[REPORT_CREATE_IN]`, `[REPORT_CREATE_STORE]`
 - `[COMPLAINTLIST_BUILD]`
