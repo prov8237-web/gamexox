@@ -13,6 +13,7 @@ public final class RoomConfigRegistry {
     private static final String DEFAULT_BOT_PROPERTY = "SimpleBotMessageProperty";
     private static final String DEFAULT_DOOR_PROPERTY = "FlatExitProperty";
     private static final String PANEL_BOT_PROPERTY = "PanelProperty";
+    private static final String SPEECH_BOT_PROPERTY = "SpeechProperty";
 
     private static final Map<String, RoomConfig> CONFIGS = new HashMap<>();
     private static final Map<String, String> ALIASES = new HashMap<>();
@@ -169,14 +170,14 @@ public final class RoomConfigRegistry {
         furniture.add(furniture("box", "bitki_duvar_4", 18, 34, 0));
 
         List<BotSpawn> bots = new ArrayList<>();
-        bots.add(botWithPanel("baloncuBengu", "ديانا", 35, 24, 1, 1, "ShopPanel"));
-        bots.add(botWithPanel("guvenlik2", "حارس X", 24, 35, 1, 1, "VipCardPanel"));
-        bots.add(botWithPanel("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, "GameBrowserPanel"));
-        bots.add(botWithPanel("tahsin", "الساعي تحسين", 24, 28, 1, 1, "NewspaperPanel"));
-        bots.add(botWithPanel("beggars", "فقير", 46, 22, 1, 1, "ReportPanel"));
-        bots.add(botWithPanel("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6, "ShopPanel"));
-        bots.add(botWithPanel("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3, "RoomShopPanel"));
-        bots.add(botWithPanel("newspaperStand3", "newspaperStand3", 22, 23, 4, 2, "NewspaperPanel"));
+        bots.add(botWithPanelAndSpeech("baloncuBengu", "ديانا", 35, 24, 1, 1, "ShopPanel"));
+        bots.add(botWithPanelAndSpeech("guvenlik2", "حارس X", 24, 35, 1, 1, "VipCardPanel"));
+        bots.add(botWithPanelAndSpeech("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, "GameBrowserPanel"));
+        bots.add(botWithPanelAndSpeech("tahsin", "الساعي تحسين", 24, 28, 1, 1, "NewspaperPanel"));
+        bots.add(botWithPanelAndSpeech("beggars", "فقير", 46, 22, 1, 1, "ReportPanel"));
+        bots.add(botWithPanelAndSpeech("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6, "ShopPanel"));
+        bots.add(botWithPanelAndSpeech("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3, "RoomShopPanel"));
+        bots.add(botWithPanelAndSpeech("newspaperStand3", "newspaperStand3", 22, 23, 4, 2, "NewspaperPanel"));
 
         List<DoorSpawn> doors = new ArrayList<>();
         doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
@@ -238,6 +239,28 @@ public final class RoomConfigRegistry {
         Map<String, Object> data = new HashMap<>();
         data.put("panelKey", panelKey);
         return new BotSpawn(key, name, x, y, width, height, 1, PANEL_BOT_PROPERTY, data, null, null);
+    }
+
+    private static BotSpawn botWithPanelAndSpeech(String key, String name, int x, int y, int width, int height,
+                                                  String panelKey) {
+        Map<String, Object> panelData = new HashMap<>();
+        panelData.put("panelKey", panelKey);
+        Map<String, Object> speechData = new HashMap<>();
+        List<Map<String, Object>> list = new ArrayList<>();
+        list.add(speechEntry("casual", "ياهلا!"));
+        list.add(speechEntry("casual", "انا هنا لو احتجت حاجة."));
+        list.add(speechEntry("casual", "تابع اخر الاخبار من الجريدة."));
+        list.add(speechEntry("casual", "استمتع بوقتك!"));
+        speechData.put("list", list);
+        return new BotSpawn(key, name, x, y, width, height, 1, PANEL_BOT_PROPERTY, panelData,
+            SPEECH_BOT_PROPERTY, speechData);
+    }
+
+    private static Map<String, Object> speechEntry(String event, String message) {
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("event", event);
+        entry.put("message", message);
+        return entry;
     }
 
     public static final class Resolution {

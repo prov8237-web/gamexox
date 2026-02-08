@@ -5,29 +5,14 @@ import com.smartfoxserver.v2.core.SFSEventType;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
-import com.smartfoxserver.v2.entities.data.SFSArray;
-import com.smartfoxserver.v2.entities.Room;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 public class MainExtension extends SFSExtension {
     
     private Set<String> registeredHandlers = new HashSet<>();
     private Map<String, Integer> commandStats = new ConcurrentHashMap<>();
     private final InMemoryStore store = new InMemoryStore();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final Map<String, ScheduledFuture<?>> roomChatterTasks = new ConcurrentHashMap<>();
-    private final Map<String, List<String>> roomChatterBots = new ConcurrentHashMap<>();
-    private final List<String> chatterLines = Arrays.asList(
-        "ياهلا!",
-        "انا هنا لو احتجت حاجة.",
-        "تابع اخر الاخبار من الجريدة.",
-        "استمتع بوقتك!"
-    );
     
     public void markResponseSent(String command, User user) {
         trace("✅ [RESPONSE-TRACKED] " + command + " for " + user.getName());
@@ -233,76 +218,5 @@ public class MainExtension extends SFSExtension {
 
     public InMemoryStore getStore() {
         return store;
-    }
-
-    public void ensureRoomChatter(String roomName) {
-        if (roomName == null || roomName.isEmpty()) {
-            return;
-        }
-        List<String> candidateBots = RoomConfigRegistry.getBotKeys(roomName);
-        if (candidateBots.isEmpty()) {
-            return;
-        }
-        roomChatterBots.put(roomName, candidateBots);
-        roomChatterTasks.computeIfAbsent(roomName, key -> scheduler.scheduleAtFixedRate(
-            () -> sendRoomChatter(key), 10, 10, TimeUnit.SECONDS));
-    }
-
-    public void stopRoomChatterIfEmpty(String roomName) {
-        if (roomName == null || roomName.isEmpty()) {
-            return;
-        }
-        Room room = getParentZone() == null ? null : getParentZone().getRoomByName(roomName);
-        if (room != null && !room.getUserList().isEmpty()) {
-            return;
-        }
-        ScheduledFuture<?> task = roomChatterTasks.remove(roomName);
-        roomChatterBots.remove(roomName);
-        if (task != null) {
-            task.cancel(false);
-        }
-    }
-
-    private void sendRoomChatter(String roomName) {
-        Room room = getParentZone() == null ? null : getParentZone().getRoomByName(roomName);
-        if (room == null || room.getUserList().isEmpty()) {
-            return;
-        }
-        List<String> bots = roomChatterBots.get(roomName);
-        if (bots == null || bots.isEmpty()) {
-            return;
-        }
-        Random random = new Random();
-        String botKey = bots.get(random.nextInt(bots.size()));
-        String message = chatterLines.get(random.nextInt(chatterLines.size()));
-        SFSObject payload = buildBotMessagePayload(botKey, message);
-        if (payload == null) {
-            return;
-        }
-        send("botMessage", payload, room.getUserList());
-    }
-
-    private SFSObject buildBotMessagePayload(String botKey, String message) {
-        BotMessageCatalog.BotDefinition definition = BotMessageCatalog.resolve(botKey);
-        SFSObject botData = new SFSObject();
-        botData.putUtfString("botKey", definition == null ? botKey : definition.getKey());
-        botData.putUtfString("message", message);
-        botData.putInt("duration", 20);
-        botData.putInt("version", 1);
-        SFSArray colors = definition == null ? buildDefaultBotColors() : definition.buildColors();
-        botData.putSFSArray("colors", colors);
-        SFSObject property = new SFSObject();
-        property.putUtfString("cn", "SimpleBotMessageProperty");
-        botData.putSFSObject("property", property);
-        return botData;
-    }
-
-    private SFSArray buildDefaultBotColors() {
-        SFSArray colors = new SFSArray();
-        colors.addUtfString("43A047");
-        colors.addUtfString("FFFFFF");
-        colors.addUtfString("1B5E20");
-        colors.addUtfString("2E7D32");
-        return colors;
     }
 }
