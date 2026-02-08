@@ -281,7 +281,7 @@ public class InMemoryStore {
         public UserState(int userId, String userName) {
             this.userId = userId;
             this.userName = userName == null ? "" : userName;
-            this.avatarName = isBlank(this.userName) ? "Guest" + userId : this.userName;
+            this.avatarName = isBlank(this.userName) ? String.valueOf(userId) : this.userName;
             this.quests = buildDefaultQuests();
             this.hand = "0";
             this.speed = 100;
