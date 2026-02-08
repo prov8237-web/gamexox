@@ -567,11 +567,12 @@ public class InMemoryStore {
             roomInfo.putUtfString("doorKey", MapBuilder.DEFAULT_DOOR_KEY);
             roomInfo.putInt("pv", 0);
             roomInfo.putInt("dv", 0);
-            mapBase64 = MapBuilder.buildMapBase64();
-            doorsJson = MapBuilder.buildDoorsJson();
+            MapBuilder.RoomBuildData buildData = MapBuilder.buildRoomData(roomName);
+            mapBase64 = buildData.getMapBase64();
+            doorsJson = buildData.getDoorsJson();
             gridBase64 = MapBuilder.buildGridBase64();
-            botsJson = MapBuilder.buildBotsJson();
-            sceneItems = MapBuilder.buildSceneItems();
+            botsJson = buildData.getBotsJson();
+            sceneItems = buildData.getSceneItems();
         }
 
         public String getRoomName() { return roomName; }
