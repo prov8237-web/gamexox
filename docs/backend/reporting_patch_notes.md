@@ -18,6 +18,7 @@
 - Implemented an in-memory report store with report records and list APIs, and wired `complaintlist`/`complaintaction` to the new report data for the reports inbox panel.
 - Added identity normalization for report tracking (numeric IDs and `Guest#` IDs are normalized), and structured reporting logs for baninfo requests, report submissions, and inbox fetches.
 - Preserved existing moderation flows by keeping prereport storage and backward-compatible complaint actions while shifting the inbox payload shape to match the reporting panel.
+- Updated `ReportHandler` to import the SmartFoxServer `Zone` class for Java 11 compatibility (fixes compilation in environments that require explicit `Zone` imports while keeping behavior unchanged).
 
 ## Manual test steps
 1. **Report create panel (baninfo)**
@@ -38,3 +39,7 @@
 4. **Complaint action**
    - From the inbox panel, mark a report as correct/incorrect or toggle pervert/abuse flags.
    - Expected: report is resolved and the list refreshes for security users without errors.
+
+## Verification notes
+- Build should compile under Java 11 with SmartFoxServer 2X libs after adding the `Zone` import in `ReportHandler`.
+- Expected runtime logs remain: `[REPORT_BANINFO_REQ]`, `[REPORT_BANINFO_RES]`, `[REPORT_SUBMIT_REQ]`, `[REPORT_SUBMIT_RES]`, `[REPORT_INBOX_FETCH]`.

@@ -1,6 +1,7 @@
 package src5;
 
 import com.smartfoxserver.v2.entities.User;
+import com.smartfoxserver.v2.entities.Zone;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 
