@@ -21,6 +21,21 @@ public class PreReportHandler extends OsBaseHandler {
 
         String targetId = HandlerUtils.readStringAny(data, "avatarID", "avatarId", "targetId", "toId", "id", "uid");
         String targetName = HandlerUtils.readStringAny(data, "avatarName", "targetName", "toName", "name");
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            String fallbackId = readPropertyString(sender, "lastProfileAvatarId");
+            if (!isBlank(fallbackId)) {
+                targetId = fallbackId;
+            }
+        }
+        if (isBlank(targetName)) {
+            String fallbackName = readPropertyString(sender, "lastProfileAvatarName");
+            if (!isBlank(fallbackName)) {
+                targetName = fallbackName;
+            }
+        }
+        if ((isBlank(targetId) || "0".equals(targetId)) && !isBlank(targetName)) {
+            targetId = targetName;
+        }
         String text = HandlerUtils.readStringAny(data, "text", "msg", "message", "chat", "body");
         String reason = HandlerUtils.readStringAny(data, "reason", "type", "category");
 
@@ -108,5 +123,19 @@ public class PreReportHandler extends OsBaseHandler {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String readPropertyString(User user, String key) {
+        if (user == null || key == null) return "";
+        try {
+            Object value = user.getProperty(key);
+            if (value != null) {
+                String asString = value.toString();
+                if (asString != null && !asString.trim().isEmpty()) {
+                    return asString;
+                }
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
 }

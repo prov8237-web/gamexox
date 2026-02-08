@@ -13,6 +13,22 @@ public class ReportHandler extends OsBaseHandler {
         int rid = extractRid(params);
 
         String reportedRaw = HandlerUtils.readStringAny(data, "reportedAvatarID", "avatarID", "avatarId");
+        String reportedName = HandlerUtils.readStringAny(data, "reportedAvatarName", "avatarName", "targetName", "name");
+        if (isBlank(reportedRaw) || "0".equals(reportedRaw)) {
+            String fallbackId = readPropertyString(sender, "lastProfileAvatarId");
+            if (!isBlank(fallbackId)) {
+                reportedRaw = fallbackId;
+            }
+        }
+        if (isBlank(reportedName)) {
+            String fallbackName = readPropertyString(sender, "lastProfileAvatarName");
+            if (!isBlank(fallbackName)) {
+                reportedName = fallbackName;
+            }
+        }
+        if ((isBlank(reportedRaw) || "0".equals(reportedRaw)) && !isBlank(reportedName)) {
+            reportedRaw = reportedName;
+        }
         String reportedNorm = HandlerUtils.normalizeAvatarId(reportedRaw);
         String reporterRaw = resolveReporterId(sender);
         String reporterNorm = HandlerUtils.normalizeAvatarId(reporterRaw);
@@ -93,5 +109,19 @@ public class ReportHandler extends OsBaseHandler {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String readPropertyString(User user, String key) {
+        if (user == null || key == null) return "";
+        try {
+            Object value = user.getProperty(key);
+            if (value != null) {
+                String asString = value.toString();
+                if (asString != null && !asString.trim().isEmpty()) {
+                    return asString;
+                }
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
 }
