@@ -20,6 +20,10 @@ public final class DoorSpawn {
         this.destinationDoorKey = destinationDoorKey;
     }
 
+    public DoorSpawn(String key, int targetX, int targetY, int targetDir, String propertyCn) {
+        this(key, targetX, targetY, targetDir, propertyCn, null, null);
+    }
+
     public String getKey() {
         return key;
     }

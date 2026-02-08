@@ -114,7 +114,7 @@ public final class RoomConfigRegistry {
         doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
         doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
         doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
-        doors.add(new DoorSpawn("d5", 5, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 5, 5, 0, DEFAULT_DOOR_PROPERTY, "street06", "spawn_default"));
         doors.add(new DoorSpawn("d6", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
         doors.add(new DoorSpawn("d7", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
         doors.add(new DoorSpawn("d8", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));

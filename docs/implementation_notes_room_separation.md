@@ -13,7 +13,18 @@
 - `Backend/DoorSpawn.java`
 
 ## Street01 Doors
-Street01: Added 9 doors (`door1`..`door9`) mapping to `street02`..`street10`; coords are placeholders to be refined.
+Street01: Added 9 doors (`d1`..`d9`) mapping to `street02`..`street10`; coords are placeholders to be refined.
+
+## Street01 Door Routing
+- `d1` → `street02`
+- `d2` → `street03`
+- `d3` → `street04`
+- `d4` → `street05`
+- `d5` → `street06` (legacy coords preserved)
+- `d6` → `street07`
+- `d7` → `street08`
+- `d8` → `street09`
+- `d9` → `street10`
 
 ## How to Extend for `street03`
 1. Add a new `RoomConfig` in `RoomConfigRegistry.buildStreet03()` with:
