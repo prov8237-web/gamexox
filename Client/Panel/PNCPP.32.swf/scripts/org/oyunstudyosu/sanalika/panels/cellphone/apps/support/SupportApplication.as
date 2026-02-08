@@ -1,0 +1,52 @@
+package org.oyunstudyosu.sanalika.panels.cellphone.apps.support
+{
+   import com.oyunstudyosu.utils.DrawUtils;
+   import flash.display.MovieClip;
+   import flash.display.Sprite;
+   import org.oyunstudyosu.sanalika.panels.cellphone.CellPhoneApplication;
+   
+   [Embed(source="/_assets/assets.swf", symbol="org.oyunstudyosu.sanalika.panels.cellphone.apps.support.SupportApplication")]
+   public class SupportApplication extends CellPhoneApplication
+   {
+       
+      
+      private var banListView:SupportView;
+      
+      public var bg:MovieClip;
+      
+      private var index:int;
+      
+      private var sceneContainer:Sprite;
+      
+      private var sceneContainerMask:Sprite;
+      
+      public function SupportApplication()
+      {
+         super();
+      }
+      
+      override public function init() : void
+      {
+         this.index = this.getChildIndex(this.bg) + 1;
+         this.sceneContainer = new Sprite();
+         this.addChildAt(this.sceneContainer,this.index);
+         this.sceneContainerMask = DrawUtils.getRectangleSprite(228,375,0,1);
+         this.addChild(this.sceneContainerMask);
+         this.sceneContainer.mask = this.sceneContainerMask;
+         this.banListView = new SupportView();
+         this.sceneContainer.addChild(this.banListView);
+      }
+      
+      override public function dispose() : void
+      {
+         if(this.sceneContainer)
+         {
+            this.removeChild(this.sceneContainer);
+            this.removeChild(this.sceneContainerMask);
+         }
+         this.sceneContainer = null;
+         this.sceneContainerMask = null;
+         this.banListView = null;
+      }
+   }
+}
