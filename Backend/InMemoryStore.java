@@ -281,7 +281,7 @@ public class InMemoryStore {
         public UserState(int userId, String userName) {
             this.userId = userId;
             this.userName = userName == null ? "" : userName;
-            this.avatarName = isBlank(this.userName) ? "Guest" + userId : this.userName;
+            this.avatarName = isBlank(this.userName) ? String.valueOf(userId) : this.userName;
             this.quests = buildDefaultQuests();
             this.hand = "0";
             this.speed = 100;
@@ -851,7 +851,20 @@ public class InMemoryStore {
     }
 
     public UserState findUserByName(String name) {
-        return usersByName.get(name);
+        UserState byName = usersByName.get(name);
+        if (byName != null) {
+            return byName;
+        }
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = name.trim();
+        for (UserState state : usersById.values()) {
+            if (state != null && trimmed.equals(state.getAvatarName())) {
+                return state;
+            }
+        }
+        return null;
     }
 
     public RoomState getOrCreateRoom(Room room) {
