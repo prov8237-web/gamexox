@@ -1,12 +1,10 @@
 package src5;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 public final class RoomConfigRegistry {
     public static final String DEFAULT_THEME = "snow";
@@ -17,17 +15,16 @@ public final class RoomConfigRegistry {
 
     private static final Map<String, RoomConfig> CONFIGS = new HashMap<>();
     private static final Map<String, String> ALIASES = new HashMap<>();
-    private static final Map<String, String> DEFAULT_DOOR_MAPPING = new HashMap<>();
 
     static {
         registerAlias("1450281337501-10.5", "street02");
         registerAlias("st01.1", "street01");
-        registerDefaultDoorMapping();
         register(buildStreet01());
-        register(buildStreet05());
         register(buildStreet02());
         register(buildStreet03());
         register(buildStreet04());
+        register(buildStreet05());
+        register(buildStreet06());
         register(buildStreet07());
         register(buildStreet08());
         register(buildStreet09());
@@ -35,6 +32,7 @@ public final class RoomConfigRegistry {
         register(buildStreet11());
         register(buildStreet12());
         register(buildStreet13());
+        register(buildStreet14());
     }
 
     private RoomConfigRegistry() {}
@@ -174,90 +172,291 @@ public final class RoomConfigRegistry {
 
     private static RoomConfig buildStreet02() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
-        furniture.add(furniture("floor", "kugu", 6, 8, 0));
-        furniture.add(furniture("box", "cadde_sezlong_02", 18, 12, 0));
-        furniture.add(furniture("box", "cadde_semsiye", 22, 18, 0));
-
         List<BotSpawn> bots = new ArrayList<>();
-        bots.add(bot("street02Guide", "Guide", 14, 16, 1, 1));
-
-        List<DoorSpawn> doors = makeNineDoors("street02", 10, 8, 2, true);
-
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street02
+        // TODO: add bots for street02
+        doors.add(new DoorSpawn("d1", 10, 5, 2, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 2, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 2, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 2, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 2, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 2, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 2, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 2, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 2, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street02", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
-    }
-
-    private static RoomConfig buildStreet05() {
-        List<FurnitureSpawn> furniture = new ArrayList<>();
-        List<BotSpawn> bots = new ArrayList<>();
-
-        addStreet05Furniture(furniture);
-        addStreet05Bots(bots);
-        List<DoorSpawn> doors = makeNineDoors("street05", 12, 8, 0, false);
-
-        return new RoomConfig("street05", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet03() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street03", 14, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street03
+        // TODO: add bots for street03
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street03", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet04() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street04", 16, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street04
+        // TODO: add bots for street04
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street04", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
+    }
+
+    private static RoomConfig buildStreet05() {
+        List<FurnitureSpawn> furniture = new ArrayList<>();
+        List<BotSpawn> bots = new ArrayList<>();
+        List<DoorSpawn> doors = new ArrayList<>();
+
+        bots.add(new BotSpawn("florist01", "florist01", 12, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanSt1_5", "ramadanSt1_5", 14, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanPurpleLamp", "ramadanPurpleLamp", 16, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanPurpleLamp2", "ramadanPurpleLamp2", 18, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("tribun", "tribun", 20, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("eylul", "eylul", 22, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanSt1_3", "ramadanSt1_3", 24, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanStars_5", "ramadanStars_5", 26, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("securityBot3", "securityBot3", 28, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+        bots.add(new BotSpawn("ramadanPurpleLamp3", "ramadanPurpleLamp3", 30, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
+
+        furniture.add(new FurnitureSpawn("box", "bayrak", 6, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "bayrak_yari", 8, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_agac_dilek", 10, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_agac1", 12, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank_3", 14, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank_5", 16, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank1_3", 18, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank1_5", 20, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank2_3", 22, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bank2_5", 24, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_bebek_heykeli", 26, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_cim_kisa", 28, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_cim_kisa_5", 30, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_cim_uzun", 32, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_direk", 34, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_durak_tabela", 36, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_girilmez_tabela_5", 38, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_kahvehane_kose", 40, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_kisa_duvar_3", 42, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_kisa_duvar_5", 44, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_metro_tabela", 46, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_reklam_tabela", 48, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_uzun_duvar_3", 50, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_uzun_duvar_5", 52, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cadde_yuvarlak_agac", 54, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cafe_market_cicek", 56, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cafe_market_cicek_yuvarlak01", 58, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cafe_market_cicek_yuvarlak02", 60, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "Cd5Tabela1", 62, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "Cd5Tabela3", 64, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "Cd5Tabela4", 66, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "cit_park_3", 68, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "Clock", 70, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_1", 72, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_1_m", 74, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_3", 76, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_5", 78, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_7", 80, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "koltuk_7_m", 82, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "masa_1", 84, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "masa_7", 86, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "SaatKulesi", 88, 20, 0, 0));
+        furniture.add(new FurnitureSpawn("box", "semsiye", 90, 20, 0, 0));
+
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
+
+        return new RoomConfig("street05", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
+    }
+
+    private static RoomConfig buildStreet06() {
+        List<FurnitureSpawn> furniture = new ArrayList<>();
+        List<BotSpawn> bots = new ArrayList<>();
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street06
+        // TODO: add bots for street06
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
+        return new RoomConfig("street06", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet07() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street07", 18, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street07
+        // TODO: add bots for street07
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street07", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet08() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street08", 20, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street08
+        // TODO: add bots for street08
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street08", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet09() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street09", 22, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street09
+        // TODO: add bots for street09
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street09", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet10() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street10", 24, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street10
+        // TODO: add bots for street10
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street10", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet11() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street11", 26, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street11
+        // TODO: add bots for street11
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street11", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet12() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street12", 28, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street12
+        // TODO: add bots for street12
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street12", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static RoomConfig buildStreet13() {
         List<FurnitureSpawn> furniture = new ArrayList<>();
         List<BotSpawn> bots = new ArrayList<>();
-        List<DoorSpawn> doors = makeNineDoors("street13", 30, 8, 0, false);
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street13
+        // TODO: add bots for street13
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
         return new RoomConfig("street13", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
+    }
+
+    private static RoomConfig buildStreet14() {
+        List<FurnitureSpawn> furniture = new ArrayList<>();
+        List<BotSpawn> bots = new ArrayList<>();
+        List<DoorSpawn> doors = new ArrayList<>();
+        // TODO: add furniture for street14
+        // TODO: add bots for street14
+        doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 15, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 20, 5, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 25, 5, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 30, 5, 0, DEFAULT_DOOR_PROPERTY, "street05", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 35, 5, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 40, 5, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 45, 5, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 50, 5, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
+        return new RoomConfig("street14", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static FurnitureSpawn furniture(String type, String def, int x, int y, int z) {
@@ -266,97 +465,6 @@ public final class RoomConfigRegistry {
 
     private static BotSpawn bot(String key, String name, int x, int y, int width, int height) {
         return new BotSpawn(key, name, x, y, width, height, 1, DEFAULT_BOT_PROPERTY);
-    }
-
-    private static void registerDefaultDoorMapping() {
-        DEFAULT_DOOR_MAPPING.put("d1", "street01");
-        DEFAULT_DOOR_MAPPING.put("d2", "street02");
-        DEFAULT_DOOR_MAPPING.put("d3", "street03");
-        DEFAULT_DOOR_MAPPING.put("d4", "street04");
-        DEFAULT_DOOR_MAPPING.put("d5", "street05");
-        DEFAULT_DOOR_MAPPING.put("d6", "street07");
-        DEFAULT_DOOR_MAPPING.put("d7", "street08");
-        DEFAULT_DOOR_MAPPING.put("d8", "street09");
-        DEFAULT_DOOR_MAPPING.put("d9", "street10");
-    }
-
-    private static List<DoorSpawn> makeNineDoors(String roomKey, int baseX, int baseY, int dir, boolean d5ToStreet01) {
-        List<DoorSpawn> doors = new ArrayList<>();
-        String[] keys = new String[] {"d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"};
-        for (int i = 0; i < keys.length; i++) {
-            String key = keys[i];
-            String destination = DEFAULT_DOOR_MAPPING.getOrDefault(key, MapBuilder.DEFAULT_ROOM_KEY);
-            if ("d5".equals(key) && d5ToStreet01) {
-                destination = "street01";
-            }
-            int x = baseX + (i * 5);
-            doors.add(new DoorSpawn(key, x, baseY, dir, DEFAULT_DOOR_PROPERTY, destination, "spawn_default"));
-        }
-        return doors;
-    }
-
-    private static void addStreet05Bots(List<BotSpawn> bots) {
-        Set<String> seen = new HashSet<>();
-        for (BotSpawn bot : bots) {
-            if (bot != null && bot.getKey() != null) {
-                seen.add(bot.getKey());
-            }
-        }
-        addBotIfMissing(bots, seen, new BotSpawn("florist01", "florist01", 12, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanSt1_5", "ramadanSt1_5", 14, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanPurpleLamp", "ramadanPurpleLamp", 16, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanPurpleLamp2", "ramadanPurpleLamp2", 18, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("tribun", "tribun", 20, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("eylul", "eylul", 22, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanSt1_3", "ramadanSt1_3", 24, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanStars_5", "ramadanStars_5", 26, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("securityBot3", "securityBot3", 28, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-        addBotIfMissing(bots, seen, new BotSpawn("ramadanPurpleLamp3", "ramadanPurpleLamp3", 30, 12, 1, 1, 1, DEFAULT_BOT_PROPERTY));
-    }
-
-    private static void addBotIfMissing(List<BotSpawn> bots, Set<String> seen, BotSpawn bot) {
-        if (bot == null || bot.getKey() == null || seen.contains(bot.getKey())) {
-            return;
-        }
-        bots.add(bot);
-        seen.add(bot.getKey());
-    }
-
-    private static void addStreet05Furniture(List<FurnitureSpawn> furniture) {
-        Set<String> seen = new HashSet<>();
-        for (FurnitureSpawn item : furniture) {
-            if (item != null && item.getDef() != null) {
-                seen.add(item.getDef());
-            }
-        }
-        String[] items = new String[] {
-            "bayrak", "bayrak_yari", "cadde_agac_dilek", "cadde_agac1", "cadde_bank_3", "cadde_bank_5",
-            "cadde_bank1_3", "cadde_bank1_5", "cadde_bank2_3", "cadde_bank2_5", "cadde_bebek_heykeli",
-            "cadde_cim_kisa", "cadde_cim_kisa_5", "cadde_cim_uzun", "cadde_direk", "cadde_durak_tabela",
-            "cadde_girilmez_tabela_5", "cadde_kahvehane_kose", "cadde_kisa_duvar_3", "cadde_kisa_duvar_5",
-            "cadde_metro_tabela", "cadde_reklam_tabela", "cadde_uzun_duvar_3", "cadde_uzun_duvar_5",
-            "cadde_yuvarlak_agac", "cafe_market_cicek", "cafe_market_cicek_yuvarlak01",
-            "cafe_market_cicek_yuvarlak02", "Cd5Tabela1", "Cd5Tabela3", "Cd5Tabela4", "cit_park_3", "Clock",
-            "koltuk_1", "koltuk_1_m", "koltuk_3", "koltuk_5", "koltuk_7", "koltuk_7_m", "masa_1", "masa_7",
-            "SaatKulesi", "semsiye"
-        };
-        int startX = 6;
-        int startY = 20;
-        int z = 0;
-        int columns = 6;
-        int spacingX = 2;
-        int spacingY = 2;
-        int index = 0;
-        for (String def : items) {
-            if (def == null || def.isEmpty() || seen.contains(def)) {
-                continue;
-            }
-            int x = startX + (index % columns) * spacingX;
-            int y = startY + (index / columns) * spacingY;
-            furniture.add(new FurnitureSpawn("box", def, x, y, z, 0));
-            seen.add(def);
-            index++;
-        }
     }
 
     public static final class Resolution {
