@@ -9,15 +9,40 @@ public class UseDoorHandler extends OsBaseHandler {
     public void handleClientRequest(User user, ISFSObject params) {
         ISFSObject data = data(params);
         String doorKey = data.containsKey("key") ? data.getUtfString("key") : MapBuilder.DEFAULT_DOOR_KEY;
-        String targetRoom = data.containsKey("roomKey") ? data.getUtfString("roomKey") : MapBuilder.DEFAULT_ROOM_KEY;
         InMemoryStore store = getStore();
         InMemoryStore.UserState state = store.getOrCreateUser(user);
+        String fromRoom = state.getCurrentRoom();
+        if (fromRoom == null || fromRoom.trim().isEmpty()) {
+            Room lastRoom = user.getLastJoinedRoom();
+            fromRoom = lastRoom != null ? lastRoom.getName() : MapBuilder.DEFAULT_ROOM_KEY;
+        }
+        String targetRoom = data.containsKey("roomKey") ? data.getUtfString("roomKey") : MapBuilder.DEFAULT_ROOM_KEY;
+        boolean routed = false;
+        String reason = "requested";
+        RoomConfigRegistry.Resolution resolution = RoomConfigRegistry.resolve(fromRoom);
+        DoorSpawn matchedDoor = null;
+        for (DoorSpawn door : resolution.getConfig().getDoors()) {
+            if (door != null && doorKey.equals(door.getKey())) {
+                matchedDoor = door;
+                break;
+            }
+        }
+        if (matchedDoor == null) {
+            reason = "unknown_door";
+        } else if (matchedDoor.getDestinationRoomKey() == null
+            || matchedDoor.getDestinationRoomKey().trim().isEmpty()) {
+            reason = "missing_destination";
+        } else {
+            targetRoom = matchedDoor.getDestinationRoomKey();
+            routed = true;
+            reason = "route_ok";
+        }
 
         trace("[USEDOOR] " + user.getName() + " -> " + targetRoom + " via " + doorKey);
 
         // Server-side room join
         Room targetRoomObj = getParentExtension().getParentZone().getRoomByName(targetRoom);
-        if (targetRoomObj != null) {
+        if (routed && targetRoomObj != null) {
             try {
                 InMemoryStore.RoomState roomState = store.getOrCreateRoom(targetRoomObj);
                 ensureMandatoryRoomVars(targetRoomObj, roomState, "USEDOOR");
@@ -27,16 +52,19 @@ public class UseDoorHandler extends OsBaseHandler {
                 trace("[USEDOOR] Error: " + e.getMessage());
             }
         }
+        trace("[ROOM_DOOR] from=" + fromRoom + " doorKey=" + doorKey + " to=" + targetRoom
+            + " ok=" + (routed && targetRoomObj != null) + " reason="
+            + (routed ? (targetRoomObj != null ? "join_ok" : "room_not_found") : reason));
 
         // Client-side room data
         SFSObject res = new SFSObject();
-        Room roomRef = targetRoomObj != null ? targetRoomObj : user.getLastJoinedRoom();
+        Room roomRef = routed && targetRoomObj != null ? targetRoomObj : user.getLastJoinedRoom();
         SFSObject room = new SFSObject();
         if (roomRef != null) {
             InMemoryStore.RoomState roomState = store.getOrCreateRoom(roomRef);
             room = roomState.buildRoomPayload(doorKey);
         } else {
-            RoomPayload payload = MapBuilder.buildRoomPayload(targetRoom, doorKey);
+            RoomPayload payload = MapBuilder.buildRoomPayload(fromRoom, doorKey);
             room.putUtfString("key", payload.getKey());
             room.putUtfString("doorKey", payload.getDoorKey());
             room.putInt("pv", payload.getPv());
