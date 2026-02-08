@@ -5,22 +5,22 @@ This document summarizes the **client-visible contract** for reporting commands 
 ## Command dictionary
 
 ### `baninfo`
-- **Command string**: `baninfo` (`RequestDataKey.AVATAR_BANINFO`).【F:Client/snal.official.swf/scripts/com/oyunstudyosu/enums/RequestDataKey.as†L350-L361】
+- **Command string**: `baninfo` (`RequestDataKey.AVATAR_BANINFO`).
 - **Likely request schema (client inputs)**:
-  - The `ReportPanel` is opened with `params.avatarId` + `params.lastMessage`, which are the only report-related data passed from chat/report entry points. These values are the most probable inputs used by the report UI when requesting `baninfo`.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/chat/SpeechBalloon.as†L189-L208】【F:Client/snal.official.swf/scripts/org/oyunstudyosu/business/BusinessMessage.as†L173-L184】【F:Client/snal.official.swf/scripts/extensions/notification/UserRoomMessage.as†L148-L163】
+  - The `ReportPanel` is opened with `params.avatarId` + `params.lastMessage`, which are the only report-related data passed from chat/report entry points. These values are the most probable inputs used by the report UI when requesting `baninfo`.
 - **Response schema (observed fields)**:
-  - All extension responses are routed through `ServiceModel.onExtensionResponse`, which expects (or tolerates) `errorCode`, `message`, and (for flood control) `nextRequest`. Any successful payload is forwarded directly to listeners/callbacks without schema validation, so `baninfo` response fields are **not defined in this repo**.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L281-L357】
+  - All extension responses are routed through `ServiceModel.onExtensionResponse`, which expects (or tolerates) `errorCode`, `message`, and (for flood control) `nextRequest`. Any successful payload is forwarded directly to listeners/callbacks without schema validation, so `baninfo` response fields are **not defined in this repo**.
 
 ### `report`
-- **Command string**: `report` (`RequestDataKey.REPORT`).【F:Client/snal.official.swf/scripts/com/oyunstudyosu/enums/RequestDataKey.as†L74-L83】
+- **Command string**: `report` (`RequestDataKey.REPORT`).
 - **Likely request schema (client inputs)**:
-  - Same as `baninfo`, the report UI is supplied `avatarId` and `lastMessage` in its panel parameters. The `report` command likely includes those fields plus report category/reason, but those fields are not defined in this repo’s ActionScript sources (they should be in the report panel SWF).【F:Client/snal.official.swf/scripts/com/oyunstudyosu/chat/SpeechBalloon.as†L189-L208】
+  - Same as `baninfo`, the report UI is supplied `avatarId` and `lastMessage` in its panel parameters. The `report` command likely includes those fields plus report category/reason, but those fields are not defined in this repo’s ActionScript sources (they should be in the report panel SWF).
 - **Response schema (observed fields)**:
-  - `ServiceModel` expects `errorCode`/`message` and triggers error handling or user alerts when set, otherwise it hands the response to callbacks and listeners. No `report`-specific response shape is defined in this repo.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L281-L357】
+  - `ServiceModel` expects `errorCode`/`message` and triggers error handling or user alerts when set, otherwise it hands the response to callbacks and listeners. No `report`-specific response shape is defined in this repo.
 
 ## Timing / rate-limit semantics
-- `ServiceModel.requestData` enforces **client-side throttling** via `ServiceRequestRate.check(cmd)`. If the request is blocked, it emits local error codes `FLOOD` or `EXTENSION_IDLE` and short-circuits callbacks.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L230-L273】
-- When a response arrives with `errorCode == "FLOOD"`, the client reads `nextRequest` and updates the throttle window via `ServiceRequestRate.create(cmd, nextRequest)`.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L294-L298】【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceRequestRate.as†L28-L53】
+- `ServiceModel.requestData` enforces **client-side throttling** via `ServiceRequestRate.check(cmd)`. If the request is blocked, it emits local error codes `FLOOD` or `EXTENSION_IDLE` and short-circuits callbacks.
+- When a response arrives with `errorCode == "FLOOD"`, the client reads `nextRequest` and updates the throttle window via `ServiceRequestRate.create(cmd, nextRequest)`.
 
 ## Error handling behavior
 `ServiceModel.onExtensionResponse` handles common error codes generically for all commands (including `baninfo` and `report`):
@@ -30,7 +30,7 @@ This document summarizes the **client-visible contract** for reporting commands 
 - `WRONG_ITEM` → tooltip with translated item list.
 - Any other `errorCode` → tooltip based on `ServiceErrorCode` message map.
 
-These are handled before callbacks are dispatched.【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L303-L342】【F:Client/snal.official.swf/scripts/com/oyunstudyosu/service/ServiceModel.as†L364-L379】
+These are handled before callbacks are dispatched.
 
 ## Unknowns + hypotheses (where to confirm)
 - **Request fields for `baninfo` and `report`**: The report UI logic is not present in `Client/snal.official.swf/scripts`; it should exist in the dynamically loaded report panel SWF (likely `/Client/Panel/1449237199236-23.4.swf/scripts`). Confirm by inspecting the `ReportPanel` class in that SWF.

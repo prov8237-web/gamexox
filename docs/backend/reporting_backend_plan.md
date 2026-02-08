@@ -3,32 +3,32 @@
 ## Current backend architecture map
 
 ### Extension entry points and routing
-- **SmartFox extension entry point:** `MainExtension` registers all request handlers (e.g., `complaintlist`, `complaintaction`, `report`, `prereport`) and forwards requests to `BaseClientRequestHandler` implementations. It also logs requests and optionally falls back to a default handler when strict protocol is disabled.【F:Backend/MainExtension.java†L20-L213】
-- **Request dispatch flow:** `MainExtension.handleClientRequest()` records `lastRequestId`, validates requests via `RequestValidator`, and then invokes the registered handler. Unknown commands can be rejected or routed to a fallback response based on `ProtocolConfig` flags.【F:Backend/MainExtension.java†L172-L213】
-- **Handler utilities:** `OsBaseHandler` provides common response methods (`reply`, `sendValidated`, `sendResponseWithRid`), extracts request `rid`, and provides store/zone access for handlers.【F:Backend/OsBaseHandler.java†L15-L133】
+- **SmartFox extension entry point:** `MainExtension` registers all request handlers (e.g., `complaintlist`, `complaintaction`, `report`, `prereport`) and forwards requests to `BaseClientRequestHandler` implementations. It also logs requests and optionally falls back to a default handler when strict protocol is disabled.
+- **Request dispatch flow:** `MainExtension.handleClientRequest()` records `lastRequestId`, validates requests via `RequestValidator`, and then invokes the registered handler. Unknown commands can be rejected or routed to a fallback response based on `ProtocolConfig` flags.
+- **Handler utilities:** `OsBaseHandler` provides common response methods (`reply`, `sendValidated`, `sendResponseWithRid`), extracts request `rid`, and provides store/zone access for handlers.
 
 ### Existing reporting-related handlers
-- **`report`, `prereport`, `ingamereport`** are currently routed to `PreReportHandler` which records a complaint and pushes a complaint list to security users.【F:Backend/MainExtension.java†L40-L44】【F:Backend/PreReportHandler.java†L16-L83】
+- **`report`, `prereport`, `ingamereport`** are currently routed to `PreReportHandler` which records a complaint and pushes a complaint list to security users.
 - **Complaint inbox**:
-  - List: `ComplaintListHandler` returns `complaintlist` with `ok` + `list` of complaint records and enforces security roles.【F:Backend/ComplaintListHandler.java†L14-L53】
-  - Action: `ComplaintActionHandler` consumes `complaintaction` (resolve/warn/kick/ban/loginban), updates complaint status, and pushes updated list to security users.【F:Backend/ComplaintActionHandler.java†L18-L140】
+  - List: `ComplaintListHandler` returns `complaintlist` with `ok` + `list` of complaint records and enforces security roles.
+  - Action: `ComplaintActionHandler` consumes `complaintaction` (resolve/warn/kick/ban/loginban), updates complaint status, and pushes updated list to security users.
 
 ### Data storage
-- **Complaints** are stored in `InMemoryStore.ComplaintRecord` with fields: `id`, `reporterId`, `reporterName`, `targetId`, `targetName`, `roomName`, `text`, `reason`, `createdAtEpochSec`, `status`. The `toSFSObject` method currently maps them into `reporterId/targetId` etc. and uses `text/reason/time/status` keys.【F:Backend/InMemoryStore.java†L1496-L1536】
-- **Ban records** are tracked in `InMemoryStore.BanRecord` keyed by IP, with `type`, `startEpochSec`, `endEpochSec`, and helper methods for `timeLeft` and active bans.【F:Backend/InMemoryStore.java†L625-L705】
+- **Complaints** are stored in `InMemoryStore.ComplaintRecord` with fields: `id`, `reporterId`, `reporterName`, `targetId`, `targetName`, `roomName`, `text`, `reason`, `createdAtEpochSec`, `status`. The `toSFSObject` method currently maps them into `reporterId/targetId` etc. and uses `text/reason/time/status` keys.
+- **Ban records** are tracked in `InMemoryStore.BanRecord` keyed by IP, with `type`, `startEpochSec`, `endEpochSec`, and helper methods for `timeLeft` and active bans.
 
 ### Protocol validation
-- `ProtocolValidator` currently enforces minimal schemas for `report`/`prereport`/`complaintlist` and leaves them permissive (only `ok` required for report-like responses).【F:Backend/ProtocolValidator.java†L278-L306】
+- `ProtocolValidator` currently enforces minimal schemas for `report`/`prereport`/`complaintlist` and leaves them permissive (only `ok` required for report-like responses).
 
 ---
 
 ## Identify if `baninfo` / `report` exist
 
 ### Report
-- **Exists**: `report` is routed to `PreReportHandler` and returns `{ ok, id }`, but **does not** match the client `ReportPanel` contract (which expects report-specific error codes and does not use `ok`).【F:Backend/MainExtension.java†L40-L44】【F:Backend/PreReportHandler.java†L36-L46】
+- **Exists**: `report` is routed to `PreReportHandler` and returns `{ ok, id }`, but **does not** match the client `ReportPanel` contract (which expects report-specific error codes and does not use `ok`).
 
 ### Baninfo
-- **Missing**: There is **no** `baninfo` handler registered in `MainExtension`. This prevents the create-report panel from initializing properly.【F:Backend/MainExtension.java†L26-L152】
+- **Missing**: There is **no** `baninfo` handler registered in `MainExtension`. This prevents the create-report panel from initializing properly.
 
 ---
 
@@ -78,7 +78,7 @@ Client `ServiceModel` expects `errorCode="FLOOD"` with `nextRequest` in response
 ## Security model
 
 ### Inbox access
-- Keep security role checks in `ComplaintListHandler` and `ComplaintActionHandler` (`SECURITY`, `EDITOR_SECURITY`, `CARD_SECURITY`). This is already in place and should remain the gating mechanism for inbox access.【F:Backend/ComplaintListHandler.java†L19-L53】【F:Backend/ComplaintActionHandler.java†L143-L151】
+- Keep security role checks in `ComplaintListHandler` and `ComplaintActionHandler` (`SECURITY`, `EDITOR_SECURITY`, `CARD_SECURITY`). This is already in place and should remain the gating mechanism for inbox access.
 
 ### Anti-spam
 - Add per-user rate limits to `report` and `baninfo`.
@@ -140,12 +140,12 @@ Clients may send `avatarID` in different forms (numeric ID or `Guest#X`). Curren
    - Use `InMemoryStore` ban count + active ban status from IP ban records.
 2. **Replace `report` handling**
    - New file: `Backend/ReportHandler.java`
-   - Register in `MainExtension` for `report` (instead of `PreReportHandler`).【F:Backend/MainExtension.java†L40-L44】
+   - Register in `MainExtension` for `report` (instead of `PreReportHandler`).
    - Validate payload: `reportedAvatarID`, `message`, `comment`, `isPervert`
    - Store report record
    - Return either `errorCode` or success
 3. **Adapt complaint list payload**
-   - Update `ComplaintListHandler` (and push list in `PreReportHandler`) to emit `complaints` array with client keys instead of `list` + legacy keys.【F:Backend/ComplaintListHandler.java†L27-L40】【F:Backend/PreReportHandler.java†L61-L81】
+   - Update `ComplaintListHandler` (and push list in `PreReportHandler`) to emit `complaints` array with client keys instead of `list` + legacy keys.
    - Option: create a translation layer when converting `ComplaintRecord` to client shape.
 4. **Extend `InMemoryStore`**
    - Add `ReportRecord` (new) or update `ComplaintRecord` to include fields used by the inbox panel.
