@@ -12,34 +12,47 @@ public class ReportHandler extends OsBaseHandler {
         ISFSObject data = data(params);
         int rid = extractRid(params);
 
-        String reportedRaw = readString(data, "reportedAvatarID", readString(data, "avatarID", readString(data, "avatarId", "")));
-        String reportedId = HandlerUtils.normalizeAvatarId(reportedRaw);
-        String reporterId = resolveReporterId(sender);
-        String message = readString(data, "message", "");
-        String comment = readString(data, "comment", "");
+        String reportedRaw = HandlerUtils.readStringAny(data, "reportedAvatarID", "avatarID", "avatarId");
+        String reportedNorm = HandlerUtils.normalizeAvatarId(reportedRaw);
+        String reporterRaw = resolveReporterId(sender);
+        String reporterNorm = HandlerUtils.normalizeAvatarId(reporterRaw);
+        String message = HandlerUtils.readStringAny(data, "message");
+        String comment = HandlerUtils.readStringAny(data, "comment");
         int isPervert = readInt(data, "isPervert", 0);
 
-        trace("[REPORT_SUBMIT_REQ] reporter=" + reporterId + " reported=" + reportedId + " isPervert=" + isPervert);
+        trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + reportedRaw + " messageRaw=" + message + " commentRaw=" + comment + " isPervert=" + isPervert);
+        if (isBlank(reportedRaw) || "0".equals(reportedRaw)) {
+            trace("[REPORT_CREATE_WARN] source=request reportedRaw=" + reportedRaw);
+        }
+        if (isBlank(message) || "0".equals(message)) {
+            trace("[REPORT_CREATE_WARN] source=request messageRaw=" + message);
+        }
+        if (isBlank(comment) || "0".equals(comment)) {
+            trace("[REPORT_CREATE_WARN] source=request commentRaw=" + comment);
+        }
 
         InMemoryStore store = getStore();
-        int banCount = store.getBanCount(reportedId);
+        int banCount = store.getBanCount(reportedNorm);
         int nextBanMin = 0;
 
         SFSObject res = new SFSObject();
         res.putInt("nextRequest", 0);
 
-        if (reportedId == null || reportedId.trim().isEmpty() || "unknown".equalsIgnoreCase(reportedId)) {
+        if (reportedNorm == null || reportedNorm.trim().isEmpty() || "unknown".equalsIgnoreCase(reportedNorm)) {
             res.putUtfString("errorCode", "MISSING_ITEM");
             sendResponseWithRid("report", res, sender, rid);
-            trace("[REPORT_SUBMIT_RES] reporter=" + reporterId + " errorCode=MISSING_ITEM");
+            trace("[REPORT_SUBMIT_RES] reporter=" + reporterRaw + " errorCode=MISSING_ITEM");
             return;
         }
 
-        long reportId = store.addReport(reporterId, reportedId, message, comment, isPervert, banCount, nextBanMin);
+        long reportId = store.addReport(reporterRaw, reporterNorm, reportedRaw, reportedNorm, message, comment, isPervert, banCount, nextBanMin);
         res.putLong("reportId", reportId);
 
         sendResponseWithRid("report", res, sender, rid);
-        trace("[REPORT_SUBMIT_RES] reporter=" + reporterId + " reportId=" + reportId);
+        trace("[REPORT_CREATE_STORE] id=" + reportId + " reporterId=" + reporterNorm + " reportedId=" + reportedNorm + " message=" + message + " comment=" + comment);
+        if (isBlank(reporterNorm) || isBlank(reportedNorm)) {
+            trace("[REPORT_CREATE_WARN] source=store reporterId=" + reporterNorm + " reportedId=" + reportedNorm);
+        }
 
         pushComplaintListToSecurityUsers();
     }
@@ -65,17 +78,7 @@ public class ReportHandler extends OsBaseHandler {
         if (raw == null || raw.trim().isEmpty()) {
             raw = sender != null ? sender.getName() : "";
         }
-        return HandlerUtils.normalizeAvatarId(raw);
-    }
-
-    private static String readString(ISFSObject obj, String key, String def) {
-        try {
-            if (obj != null && obj.containsKey(key)) {
-                String v = obj.getUtfString(key);
-                if (v != null) return v;
-            }
-        } catch (Exception ignored) {}
-        return def;
+        return raw;
     }
 
     private static int readInt(ISFSObject obj, String key, int def) {
@@ -86,5 +89,9 @@ public class ReportHandler extends OsBaseHandler {
             }
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

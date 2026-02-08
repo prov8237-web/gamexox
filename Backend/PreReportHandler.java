@@ -19,10 +19,10 @@ public class PreReportHandler extends OsBaseHandler {
         int rid = extractRid(params);
         String command = resolveCommand(sender);
 
-        String targetId = readStringAny(data, new String[]{"avatarID","avatarId","targetId","toId","id","uid"}, "");
-        String targetName = readStringAny(data, new String[]{"avatarName","targetName","toName","name"}, "");
-        String text = readStringAny(data, new String[]{"text","msg","message","chat","body"}, null);
-        String reason = readStringAny(data, new String[]{"reason","type","category"}, null);
+        String targetId = HandlerUtils.readStringAny(data, "avatarID", "avatarId", "targetId", "toId", "id", "uid");
+        String targetName = HandlerUtils.readStringAny(data, "avatarName", "targetName", "toName", "name");
+        String text = HandlerUtils.readStringAny(data, "text", "msg", "message", "chat", "body");
+        String reason = HandlerUtils.readStringAny(data, "reason", "type", "category");
 
         Room room = sender.getLastJoinedRoom();
         String roomName = room != null ? room.getName() : readStringAny(data, new String[]{"room","roomName"}, "");
@@ -30,13 +30,29 @@ public class PreReportHandler extends OsBaseHandler {
         InMemoryStore store = getStore();
         InMemoryStore.UserState st = store.getOrCreateUser(sender);
 
-        String reporterId = HandlerUtils.normalizeAvatarId(sender.getName());
+        String reporterRaw = sender.getName();
+        String reporterNorm = HandlerUtils.normalizeAvatarId(reporterRaw);
+        String reporterId = reporterNorm.isEmpty() ? reporterRaw : reporterNorm;
         String reporterName = st.getAvatarName() != null ? st.getAvatarName() : sender.getName();
 
         String normalizedTargetId = HandlerUtils.normalizeAvatarId(targetId);
         int banCount = store.getBanCount(normalizedTargetId);
+        trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + targetId + " messageRaw=" + text + " commentRaw=" + reason + " isPervert=0");
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            trace("[REPORT_CREATE_WARN] source=request reportedRaw=" + targetId);
+        }
+        if (isBlank(text) || "0".equals(text)) {
+            trace("[REPORT_CREATE_WARN] source=request messageRaw=" + text);
+        }
+        if (isBlank(reason) || "0".equals(reason)) {
+            trace("[REPORT_CREATE_WARN] source=request commentRaw=" + reason);
+        }
         long complaintId = store.addComplaint(reporterId, reporterName, targetId, targetName, roomName, text, reason);
-        store.addReport(reporterId, normalizedTargetId, text, reason, 0, banCount, 0);
+        store.addReport(reporterRaw, reporterNorm, targetId, normalizedTargetId, text, reason, 0, banCount, 0);
+        trace("[REPORT_CREATE_STORE] id=" + complaintId + " reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId + " message=" + text + " comment=" + reason);
+        if (isBlank(reporterNorm) || isBlank(normalizedTargetId)) {
+            trace("[REPORT_CREATE_WARN] source=store reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId);
+        }
 
         // ACK to reporter
         SFSObject res = new SFSObject();
@@ -88,5 +104,9 @@ public class PreReportHandler extends OsBaseHandler {
             } catch (Exception ignored) {}
         }
         return def;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

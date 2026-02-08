@@ -1546,7 +1546,11 @@ public static class ComplaintRecord {
 public static class ReportRecord {
     public final long reportId;
     public final String reporterId;
+    public final String reporterIdRaw;
+    public final String reporterIdNorm;
     public final String reportedId;
+    public final String reportedIdRaw;
+    public final String reportedIdNorm;
     public final String message;
     public final String comment;
     public final long createdAtEpochSec;
@@ -1556,11 +1560,15 @@ public static class ReportRecord {
     public volatile int banCount;
     public volatile int nextBanMin;
 
-    public ReportRecord(long reportId, String reporterId, String reportedId, String message, String comment,
-                        int isPervert, int banCount, int nextBanMin, long createdAtEpochSec) {
+    public ReportRecord(long reportId, String reporterIdRaw, String reporterIdNorm, String reportedIdRaw, String reportedIdNorm,
+                        String message, String comment, int isPervert, int banCount, int nextBanMin, long createdAtEpochSec) {
         this.reportId = reportId;
-        this.reporterId = reporterId;
-        this.reportedId = reportedId;
+        this.reporterIdRaw = reporterIdRaw == null ? "" : reporterIdRaw;
+        this.reporterIdNorm = reporterIdNorm == null ? "" : reporterIdNorm;
+        this.reportedIdRaw = reportedIdRaw == null ? "" : reportedIdRaw;
+        this.reportedIdNorm = reportedIdNorm == null ? "" : reportedIdNorm;
+        this.reporterId = this.reporterIdNorm.isEmpty() ? this.reporterIdRaw : this.reporterIdNorm;
+        this.reportedId = this.reportedIdNorm.isEmpty() ? this.reportedIdRaw : this.reportedIdNorm;
         this.message = message == null ? "" : message;
         this.comment = comment == null ? "" : comment;
         this.isPervert = Math.max(0, isPervert);
@@ -1646,11 +1654,13 @@ public boolean resolveComplaint(long id) {
 }
 
 // ========== REPORTS API ==========
-public long addReport(String reporterId, String reportedId, String message, String comment,
+public long addReport(String reporterIdRaw, String reporterIdNorm, String reportedIdRaw, String reportedIdNorm,
+                      String message, String comment,
                       int isPervert, int banCount, int nextBanMin) {
     long id = System.currentTimeMillis();
     long now = System.currentTimeMillis() / 1000;
-    ReportRecord rec = new ReportRecord(id, reporterId, reportedId, message, comment, isPervert, banCount, nextBanMin, now);
+    ReportRecord rec = new ReportRecord(id, reporterIdRaw, reporterIdNorm, reportedIdRaw, reportedIdNorm,
+            message, comment, isPervert, banCount, nextBanMin, now);
     reportsById.put(id, rec);
     reportOrder.add(0, id);
     return id;

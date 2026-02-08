@@ -67,4 +67,32 @@ public final class HandlerUtils {
         }
         return null;
     }
+
+    public static String readStringAny(ISFSObject obj, String... keys) {
+        if (obj == null || keys == null) {
+            return "";
+        }
+        for (String key : keys) {
+            if (key == null) continue;
+            try {
+                if (!obj.containsKey(key)) continue;
+                String v = obj.getUtfString(key);
+                if (v != null) return v;
+            } catch (Exception ignored) {}
+            try {
+                if (!obj.containsKey(key)) continue;
+                return String.valueOf(obj.getInt(key));
+            } catch (Exception ignored) {}
+            try {
+                if (!obj.containsKey(key)) continue;
+                return String.valueOf(obj.getLong(key));
+            } catch (Exception ignored) {}
+            try {
+                if (!obj.containsKey(key)) continue;
+                Double d = obj.getDouble(key);
+                if (d != null) return String.valueOf(d.intValue());
+            } catch (Exception ignored) {}
+        }
+        return "";
+    }
 }

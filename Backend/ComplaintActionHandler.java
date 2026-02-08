@@ -4,6 +4,7 @@ package src5;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.Zone;
 import com.smartfoxserver.v2.entities.data.*;
+import com.smartfoxserver.v2.entities.variables.UserVariable;
 
 /**
  * Knights/Security panel actions on a complaint:
@@ -35,6 +36,9 @@ public class ComplaintActionHandler extends OsBaseHandler {
         Integer isCorrect = readOptionalInt(data, "isCorrect");
         Integer isPervert = readOptionalInt(data, "isPervert");
         Integer isAbuse = readOptionalInt(data, "isAbuse");
+        String reportedParam = HandlerUtils.readStringAny(data, "reportedAvatarID", "reportedId", "avatarID", "avatarId");
+
+        trace("[COMPLAINT_ACTION_IN] action=" + action + " id=" + id + " reportedAvatarID=" + reportedParam + " duration=" + duration + " reason=" + reason);
 
         InMemoryStore.ReportRecord report = store.getReport(id);
         InMemoryStore.ComplaintRecord complaint = report == null ? store.getComplaint(id) : null;
@@ -50,7 +54,20 @@ public class ComplaintActionHandler extends OsBaseHandler {
         boolean ok = true;
 
         boolean usesInboxFlags = isCorrect != null || isPervert != null || isAbuse != null;
-        String targetIdForLog = report != null ? report.reportedId : complaint != null ? complaint.targetId : "unknown";
+        String storedReporter = report != null ? preferredReporterId(report) : complaint != null ? complaint.reporterId : "unknown";
+        String storedReported = report != null ? preferredReportedId(report) : complaint != null ? complaint.targetId : "unknown";
+        User resolvedForLog = resolveTargetUser(storedReported, report != null ? report.reportedIdNorm : complaint != null ? complaint.targetName : null);
+        String resolvedName = resolvedForLog != null ? resolvedForLog.getName() : "null";
+        String resolvedKeys = collectUserVarKeys(resolvedForLog);
+        trace("[COMPLAINT_ACTION_RESOLVE] reportId=" + id
+                + " stored.reportedId=" + storedReported
+                + " stored.reporterId=" + storedReporter
+                + " targetResolved=" + (resolvedForLog != null)
+                + " targetName=" + resolvedName
+                + " targetVarsDumpKeys=" + resolvedKeys);
+        if (isBlank(storedReported) || "0".equals(storedReported)) {
+            trace("[COMPLAINT_ACTION_WARN] source=store stored.reportedId=" + storedReported);
+        }
 
         if (report != null && usesInboxFlags) {
             if (isPervert != null) {
@@ -65,16 +82,16 @@ public class ComplaintActionHandler extends OsBaseHandler {
         } else if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
             ok = report != null ? store.resolveReport(id) : store.resolveComplaint(id);
         } else if ("warn".equals(action)) {
-            trace("[MOD_WARN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id);
+            trace("[MOD_WARN_REQ] actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id);
             ok = report != null ? warnTarget(report, reason) : warnTarget(complaint, reason);
         } else if ("kick".equals(action)) {
-            trace("[MOD_KICK_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id);
+            trace("[MOD_KICK_REQ] actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id);
             ok = report != null ? kickTarget(report) : kickTarget(complaint);
         } else if ("ban".equals(action) || "chatban".equals(action)) {
-            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id + " type=CHAT duration=" + duration);
+            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id + " type=CHAT duration=" + duration);
             ok = report != null ? banTarget(report, "CHAT", duration, id) : banTarget(complaint, "CHAT", duration, id);
         } else if ("loginban".equals(action) || "banlogin".equals(action)) {
-            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id + " type=LOGIN duration=" + duration);
+            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id + " type=LOGIN duration=" + duration);
             ok = report != null ? banTarget(report, "LOGIN", duration, id) : banTarget(complaint, "LOGIN", duration, id);
         } else if (usesInboxFlags && report != null) {
             ok = true;
@@ -93,7 +110,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
     }
 
     private boolean warnTarget(InMemoryStore.ReportRecord report, String reason) {
-        User target = resolveTargetUser(report.reportedId, null);
+        User target = resolveTargetUser(preferredReportedId(report), report.reportedIdNorm);
         if (target == null) return false;
 
         String msg = reason != null ? reason : "WARNING";
@@ -139,7 +156,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
     }
 
     private boolean kickTarget(InMemoryStore.ReportRecord report) {
-        User target = resolveTargetUser(report.reportedId, null);
+        User target = resolveTargetUser(preferredReportedId(report), report.reportedIdNorm);
         if (target == null) return false;
         try {
             getApi().disconnectUser(target);
@@ -158,7 +175,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         InMemoryStore store = getStore();
         InMemoryStore.BanRecord rec = store.addBanForIp(ip, banType, duration);
         if (rec == null) return false;
-        store.incrementBanCount(complaint.targetId);
+        store.incrementBanCount(HandlerUtils.normalizeAvatarId(complaint.targetId));
 
         SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
         payload.putUtfString("type", banType);
@@ -175,14 +192,14 @@ public class ComplaintActionHandler extends OsBaseHandler {
     }
 
     private boolean banTarget(InMemoryStore.ReportRecord report, String banType, int duration, long reportId) {
-        User target = resolveTargetUser(report.reportedId, null);
+        User target = resolveTargetUser(preferredReportedId(report), report.reportedIdNorm);
         if (target == null) return false;
 
         String ip = target.getSession().getAddress();
         InMemoryStore store = getStore();
         InMemoryStore.BanRecord rec = store.addBanForIp(ip, banType, duration);
         if (rec == null) return false;
-        store.incrementBanCount(report.reportedId);
+        store.incrementBanCount(HandlerUtils.normalizeAvatarId(preferredReportedId(report)));
 
         SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
         payload.putUtfString("type", banType);
@@ -245,6 +262,20 @@ public class ComplaintActionHandler extends OsBaseHandler {
         } catch (Exception ignored) {}
     }
 
+    private String preferredReporterId(InMemoryStore.ReportRecord report) {
+        if (report == null) return "";
+        if (report.reporterIdRaw != null && !report.reporterIdRaw.isEmpty()) return report.reporterIdRaw;
+        if (report.reporterIdNorm != null && !report.reporterIdNorm.isEmpty()) return report.reporterIdNorm;
+        return report.reporterId;
+    }
+
+    private String preferredReportedId(InMemoryStore.ReportRecord report) {
+        if (report == null) return "";
+        if (report.reportedIdRaw != null && !report.reportedIdRaw.isEmpty()) return report.reportedIdRaw;
+        if (report.reportedIdNorm != null && !report.reportedIdNorm.isEmpty()) return report.reportedIdNorm;
+        return report.reportedId;
+    }
+
     private User resolveTargetUser(String avatarIdOrName, String avatarNameFallback) {
         try {
             Zone z = getZone();
@@ -288,6 +319,27 @@ public class ComplaintActionHandler extends OsBaseHandler {
         String normalizedCandidate = HandlerUtils.normalizeAvatarId(candidate);
         if (normalizedInput != null && normalizedInput.equals(normalizedCandidate)) return true;
         return rawInput.equals(candidate);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String collectUserVarKeys(User user) {
+        if (user == null) {
+            return "[]";
+        }
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        try {
+            for (UserVariable var : user.getVariables()) {
+                if (var != null) {
+                    keys.add(var.getName());
+                }
+            }
+        } catch (Exception ignored) {
+            return "[]";
+        }
+        return keys.toString();
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {

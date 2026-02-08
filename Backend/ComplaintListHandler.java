@@ -50,12 +50,14 @@ public class ComplaintListHandler extends OsBaseHandler {
         List<InMemoryStore.ReportRecord> list = store.listReports(status, limit);
         ISFSArray arr = new SFSArray();
         for (InMemoryStore.ReportRecord r : list) {
+            String reporterOut = r.reporterIdRaw != null && !r.reporterIdRaw.isEmpty() ? r.reporterIdRaw : r.reporterId;
+            String reportedOut = r.reportedIdRaw != null && !r.reportedIdRaw.isEmpty() ? r.reportedIdRaw : r.reportedId;
             SFSObject item = new SFSObject();
             item.putLong("id", r.reportId);
             item.putUtfString("message", r.message == null ? "" : r.message);
             item.putUtfString("comment", r.comment == null ? "" : r.comment);
-            item.putUtfString("reporterAvatarID", r.reporterId == null ? "" : r.reporterId);
-            item.putUtfString("reportedAvatarID", r.reportedId == null ? "" : r.reportedId);
+            item.putUtfString("reporterAvatarID", reporterOut == null ? "" : reporterOut);
+            item.putUtfString("reportedAvatarID", reportedOut == null ? "" : reportedOut);
             item.putInt("isPervert", r.isPervert);
             item.putInt("banCount", r.banCount);
             item.putInt("nextBanMin", r.nextBanMin);
@@ -65,6 +67,18 @@ public class ComplaintListHandler extends OsBaseHandler {
         SFSObject res = new SFSObject();
         res.putBool("ok", true);
         res.putSFSArray("complaints", arr);
+        if (!list.isEmpty()) {
+            InMemoryStore.ReportRecord first = list.get(0);
+            String reporterOut = first.reporterIdRaw != null && !first.reporterIdRaw.isEmpty() ? first.reporterIdRaw : first.reporterId;
+            String reportedOut = first.reportedIdRaw != null && !first.reportedIdRaw.isEmpty() ? first.reportedIdRaw : first.reportedId;
+            System.out.println("[COMPLAINTLIST_BUILD] count=" + list.size()
+                    + " first.reportedId=" + reportedOut
+                    + " reporterId=" + reporterOut
+                    + " message=" + first.message
+                    + " comment=" + first.comment);
+        } else {
+            System.out.println("[COMPLAINTLIST_BUILD] count=0");
+        }
         return res;
     }
 
