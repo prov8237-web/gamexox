@@ -20,8 +20,9 @@ public class MainExtension extends SFSExtension {
     private Map<String, Integer> commandStats = new ConcurrentHashMap<>();
     private final InMemoryStore store = new InMemoryStore();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final Map<String, ScheduledFuture<?>> tahsinChatterTasks = new ConcurrentHashMap<>();
-    private final List<String> tahsinChatterLines = Arrays.asList(
+    private final Map<String, ScheduledFuture<?>> roomChatterTasks = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> roomChatterBots = new ConcurrentHashMap<>();
+    private final List<String> chatterLines = Arrays.asList(
         "ياهلا!",
         "انا هنا لو احتجت حاجة.",
         "تابع اخر الاخبار من الجريدة.",
@@ -232,18 +233,29 @@ public class MainExtension extends SFSExtension {
         return store;
     }
 
-    public void ensureTahsinChatter(String roomName) {
+    public void ensureRoomChatter(String roomName) {
         if (roomName == null || roomName.isEmpty()) {
             return;
         }
-        if (!RoomConfigRegistry.roomHasBot(roomName, "tahsin")) {
+        List<String> candidateBots = RoomConfigRegistry.getBotKeys(roomName);
+        if (candidateBots.isEmpty()) {
             return;
         }
-        tahsinChatterTasks.computeIfAbsent(roomName, key -> scheduler.scheduleAtFixedRate(
-            () -> sendTahsinChatter(key), 10, 10, TimeUnit.SECONDS));
+        List<String> validBots = new ArrayList<>();
+        for (String botKey : candidateBots) {
+            if (BotMessageCatalog.resolve(botKey) != null) {
+                validBots.add(botKey);
+            }
+        }
+        if (validBots.isEmpty()) {
+            return;
+        }
+        roomChatterBots.put(roomName, validBots);
+        roomChatterTasks.computeIfAbsent(roomName, key -> scheduler.scheduleAtFixedRate(
+            () -> sendRoomChatter(key), 10, 10, TimeUnit.SECONDS));
     }
 
-    public void stopTahsinChatterIfEmpty(String roomName) {
+    public void stopRoomChatterIfEmpty(String roomName) {
         if (roomName == null || roomName.isEmpty()) {
             return;
         }
@@ -251,19 +263,26 @@ public class MainExtension extends SFSExtension {
         if (room != null && !room.getUserList().isEmpty()) {
             return;
         }
-        ScheduledFuture<?> task = tahsinChatterTasks.remove(roomName);
+        ScheduledFuture<?> task = roomChatterTasks.remove(roomName);
+        roomChatterBots.remove(roomName);
         if (task != null) {
             task.cancel(false);
         }
     }
 
-    private void sendTahsinChatter(String roomName) {
+    private void sendRoomChatter(String roomName) {
         Room room = getParentZone() == null ? null : getParentZone().getRoomByName(roomName);
         if (room == null || room.getUserList().isEmpty()) {
             return;
         }
-        String message = tahsinChatterLines.get(new Random().nextInt(tahsinChatterLines.size()));
-        SFSObject payload = buildBotMessagePayload("tahsin", message);
+        List<String> bots = roomChatterBots.get(roomName);
+        if (bots == null || bots.isEmpty()) {
+            return;
+        }
+        Random random = new Random();
+        String botKey = bots.get(random.nextInt(bots.size()));
+        String message = chatterLines.get(random.nextInt(chatterLines.size()));
+        SFSObject payload = buildBotMessagePayload(botKey, message);
         if (payload == null) {
             return;
         }

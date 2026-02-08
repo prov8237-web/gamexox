@@ -130,7 +130,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
         
         trace("[ROOM_VARS_BROADCAST] stage=USER_JOIN_ROOM room=" + room.getName() + " vars=doors,bots,grid,isInteractiveRoom,isGameStarted,isGameEnded");
         trace("[SERVER_EVENT] USER_JOIN_ROOM room vars for " + room.getName());
-        ext.ensureTahsinChatter(room.getName());
+        ext.ensureRoomChatter(room.getName());
 
         // ═══════════════════════════════════════════════════════════
         // ✅ الجديد: إرسال بيانات اللاعب الجديد للآخرين
@@ -219,7 +219,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
             trace("[BROADCAST] Notifying " + remainingPlayers.size() + " players that " + user.getName() + " left");
             ext.send("roommessage", leaveData, remainingPlayers); // ✅ استخدام ext.send()
         }
-        ext.stopTahsinChatterIfEmpty(room.getName());
+        ext.stopRoomChatterIfEmpty(room.getName());
         
         trace("[SERVER_EVENT] USER_LEAVE_ROOM cleared room for " + user.getName());
         trace("════════════════════════════════════════════════════");

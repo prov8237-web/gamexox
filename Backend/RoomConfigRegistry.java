@@ -59,6 +59,21 @@ public final class RoomConfigRegistry {
         return false;
     }
 
+    public static List<String> getBotKeys(String roomKey) {
+        String normalized = normalizeRoomKey(roomKey);
+        RoomConfig config = normalized == null ? null : CONFIGS.get(normalized);
+        if (config == null || config.getBots().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        List<String> keys = new ArrayList<>();
+        for (BotSpawn bot : config.getBots()) {
+            if (bot.getKey() != null && !bot.getKey().trim().isEmpty()) {
+                keys.add(bot.getKey());
+            }
+        }
+        return keys;
+    }
+
     public static String normalizeRoomKey(String rawRoomName) {
         if (rawRoomName == null) {
             return MapBuilder.DEFAULT_ROOM_KEY;
@@ -154,7 +169,7 @@ public final class RoomConfigRegistry {
         furniture.add(furniture("box", "bitki_duvar_4", 18, 34, 0));
 
         List<BotSpawn> bots = new ArrayList<>();
-        bots.add(botWithPanel("baloncuBengu", "ديانا", 35, 24, 1, 1, "MapPanel"));
+        bots.add(botWithPanel("baloncuBengu", "ديانا", 35, 24, 1, 1, "ShopPanel"));
         bots.add(botWithPanel("guvenlik2", "حارس X", 24, 35, 1, 1, "VipCardPanel"));
         bots.add(botWithPanel("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, "GameBrowserPanel"));
         bots.add(botWithPanel("tahsin", "الساعي تحسين", 24, 28, 1, 1, "NewspaperPanel"));
