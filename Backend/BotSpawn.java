@@ -9,8 +9,13 @@ public final class BotSpawn {
     private final int height;
     private final int length;
     private final String propertyCn;
+    private final java.util.Map<String, Object> propertyData;
+    private final String speechPropertyCn;
+    private final java.util.Map<String, Object> speechPropertyData;
 
-    public BotSpawn(String key, String name, int x, int y, int width, int height, int length, String propertyCn) {
+    public BotSpawn(String key, String name, int x, int y, int width, int height, int length, String propertyCn,
+                    java.util.Map<String, Object> propertyData, String speechPropertyCn,
+                    java.util.Map<String, Object> speechPropertyData) {
         this.key = key;
         this.name = name;
         this.x = x;
@@ -19,6 +24,9 @@ public final class BotSpawn {
         this.height = height;
         this.length = length;
         this.propertyCn = propertyCn;
+        this.propertyData = propertyData;
+        this.speechPropertyCn = speechPropertyCn;
+        this.speechPropertyData = speechPropertyData;
     }
 
     public String getKey() {
@@ -51,5 +59,17 @@ public final class BotSpawn {
 
     public String getPropertyCn() {
         return propertyCn;
+    }
+
+    public java.util.Map<String, Object> getPropertyData() {
+        return propertyData;
+    }
+
+    public String getSpeechPropertyCn() {
+        return speechPropertyCn;
+    }
+
+    public java.util.Map<String, Object> getSpeechPropertyData() {
+        return speechPropertyData;
     }
 }
