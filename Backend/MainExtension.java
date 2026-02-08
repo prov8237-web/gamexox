@@ -4,14 +4,29 @@ import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.smartfoxserver.v2.core.SFSEventType;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
+import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.entities.data.SFSArray;
+import com.smartfoxserver.v2.entities.Room;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class MainExtension extends SFSExtension {
     
     private Set<String> registeredHandlers = new HashSet<>();
     private Map<String, Integer> commandStats = new ConcurrentHashMap<>();
     private final InMemoryStore store = new InMemoryStore();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final Map<String, ScheduledFuture<?>> tahsinChatterTasks = new ConcurrentHashMap<>();
+    private final List<String> tahsinChatterLines = Arrays.asList(
+        "ياهلا!",
+        "انا هنا لو احتجت حاجة.",
+        "تابع اخر الاخبار من الجريدة.",
+        "استمتع بوقتك!"
+    );
     
     public void markResponseSent(String command, User user) {
         trace("✅ [RESPONSE-TRACKED] " + command + " for " + user.getName());
@@ -215,5 +230,61 @@ public class MainExtension extends SFSExtension {
 
     public InMemoryStore getStore() {
         return store;
+    }
+
+    public void ensureTahsinChatter(String roomName) {
+        if (roomName == null || roomName.isEmpty()) {
+            return;
+        }
+        if (!RoomConfigRegistry.roomHasBot(roomName, "tahsin")) {
+            return;
+        }
+        tahsinChatterTasks.computeIfAbsent(roomName, key -> scheduler.scheduleAtFixedRate(
+            () -> sendTahsinChatter(key), 10, 10, TimeUnit.SECONDS));
+    }
+
+    public void stopTahsinChatterIfEmpty(String roomName) {
+        if (roomName == null || roomName.isEmpty()) {
+            return;
+        }
+        Room room = getParentZone() == null ? null : getParentZone().getRoomByName(roomName);
+        if (room != null && !room.getUserList().isEmpty()) {
+            return;
+        }
+        ScheduledFuture<?> task = tahsinChatterTasks.remove(roomName);
+        if (task != null) {
+            task.cancel(false);
+        }
+    }
+
+    private void sendTahsinChatter(String roomName) {
+        Room room = getParentZone() == null ? null : getParentZone().getRoomByName(roomName);
+        if (room == null || room.getUserList().isEmpty()) {
+            return;
+        }
+        String message = tahsinChatterLines.get(new Random().nextInt(tahsinChatterLines.size()));
+        SFSObject payload = buildBotMessagePayload("tahsin", message);
+        if (payload == null) {
+            return;
+        }
+        send("botMessage", payload, room.getUserList());
+    }
+
+    private SFSObject buildBotMessagePayload(String botKey, String message) {
+        BotMessageCatalog.BotDefinition definition = BotMessageCatalog.resolve(botKey);
+        if (definition == null) {
+            return null;
+        }
+        SFSObject botData = new SFSObject();
+        botData.putUtfString("botKey", definition.getKey());
+        botData.putUtfString("message", message);
+        botData.putInt("duration", 20);
+        botData.putInt("version", 1);
+        SFSArray colors = definition.buildColors();
+        botData.putSFSArray("colors", colors);
+        SFSObject property = new SFSObject();
+        property.putUtfString("cn", "SimpleBotMessageProperty");
+        botData.putSFSObject("property", property);
+        return botData;
     }
 }
