@@ -12,6 +12,7 @@ public final class RoomConfigRegistry {
     public static final int DEFAULT_Y_ORIGIN = 614;
     private static final String DEFAULT_BOT_PROPERTY = "SimpleBotMessageProperty";
     private static final String DEFAULT_DOOR_PROPERTY = "FlatExitProperty";
+    private static final String PANEL_BOT_PROPERTY = "PanelProperty";
 
     private static final Map<String, RoomConfig> CONFIGS = new HashMap<>();
     private static final Map<String, String> ALIASES = new HashMap<>();
@@ -136,14 +137,14 @@ public final class RoomConfigRegistry {
         furniture.add(furniture("box", "bitki_duvar_4", 18, 34, 0));
 
         List<BotSpawn> bots = new ArrayList<>();
-        bots.add(bot("baloncuBengu", "ديانا", 35, 24, 1, 1));
-        bots.add(bot("guvenlik2", "حارس X", 24, 35, 1, 1));
-        bots.add(bot("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2));
-        bots.add(bot("tahsin", "الساعي تحسين", 24, 28, 1, 1));
-        bots.add(bot("beggars", "فقير", 46, 22, 1, 1));
-        bots.add(bot("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6));
-        bots.add(bot("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3));
-        bots.add(bot("newspaperStand3", "newspaperStand3", 22, 23, 4, 2));
+        bots.add(botWithPanel("baloncuBengu", "ديانا", 35, 24, 1, 1, "MapPanel"));
+        bots.add(botWithPanel("guvenlik2", "حارس X", 24, 35, 1, 1, "VipCardPanel"));
+        bots.add(botWithPanel("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, "GameBrowserPanel"));
+        bots.add(botWithPanel("tahsin", "الساعي تحسين", 24, 28, 1, 1, "GuidePanel"));
+        bots.add(botWithPanel("beggars", "فقير", 46, 22, 1, 1, "ReportPanel"));
+        bots.add(botWithPanel("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6, "ShopPanel"));
+        bots.add(botWithPanel("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3, "RoomShopPanel"));
+        bots.add(botWithPanel("newspaperStand3", "newspaperStand3", 22, 23, 4, 2, "NewspaperPanel"));
 
         List<DoorSpawn> doors = new ArrayList<>();
         doors.add(new DoorSpawn("d1", 10, 5, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
@@ -166,7 +167,7 @@ public final class RoomConfigRegistry {
         furniture.add(furniture("box", "cadde_semsiye", 22, 18, 0));
 
         List<BotSpawn> bots = new ArrayList<>();
-        bots.add(bot("street02Guide", "Guide", 14, 16, 1, 1));
+        bots.add(botWithPanel("street02Guide", "Guide", 14, 16, 1, 1, "QuestPanel"));
 
         List<DoorSpawn> doors = new ArrayList<>();
         doors.add(new DoorSpawn("d5", 10, 8, 2, DEFAULT_DOOR_PROPERTY,
@@ -198,7 +199,13 @@ public final class RoomConfigRegistry {
     }
 
     private static BotSpawn bot(String key, String name, int x, int y, int width, int height) {
-        return new BotSpawn(key, name, x, y, width, height, 1, DEFAULT_BOT_PROPERTY);
+        return new BotSpawn(key, name, x, y, width, height, 1, DEFAULT_BOT_PROPERTY, null);
+    }
+
+    private static BotSpawn botWithPanel(String key, String name, int x, int y, int width, int height, String panelKey) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("panelKey", panelKey);
+        return new BotSpawn(key, name, x, y, width, height, 1, PANEL_BOT_PROPERTY, data);
     }
 
     public static final class Resolution {

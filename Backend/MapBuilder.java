@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSArray;
@@ -219,7 +220,7 @@ public final class MapBuilder {
                 json.append(",");
             }
             json.append(botJson(bot.getKey(), bot.getName(), bot.getX(), bot.getY(), bot.getWidth(), bot.getHeight(),
-                bot.getLength(), bot.getPropertyCn()));
+                bot.getLength(), bot.getPropertyCn(), bot.getPropertyData()));
         }
         json.append("]");
         return json.toString();
@@ -259,9 +260,11 @@ public final class MapBuilder {
     }
 
     // دالة لإنشاء JSON البوتات بالهيكل الصحيح المطلوب من الكلاينت
-    private static String botJson(String key, String name, int x, int y, int w, int h, int length, String propertyCn) {
+    private static String botJson(String key, String name, int x, int y, int w, int h, int length, String propertyCn,
+                                  Map<String, Object> propertyData) {
         String property = propertyCn == null ? "SimpleBotMessageProperty" : propertyCn;
         int safeLength = length <= 0 ? 1 : length;
+        String propertyJson = buildPropertyJson(property, propertyData);
         return "{"
             + "\"key\":\"" + key + "\","           // مفتاح البوت (metaKey)
             + "\"posX\":" + x + ","                // موضع X (مهم: posX مش x)
@@ -271,10 +274,39 @@ public final class MapBuilder {
             + "\"length\":" + safeLength + ","     // الارتفاع (length)
             + "\"ver\":1,"                         // الإصدار (version)
             + "\"property\":{"                     // خصائص البوت
-            + "\"cn\":\"" + property + "\""        // نوع الـ Property
+            + propertyJson
             + "},"
             + "\"speechProperty\":null"            // خصائص الكلام (يمكن تركها null)
             + "}";
+    }
+
+    private static String buildPropertyJson(String propertyCn, Map<String, Object> propertyData) {
+        StringBuilder json = new StringBuilder();
+        json.append("\"cn\":\"").append(escapeJson(propertyCn)).append("\"");
+        if (propertyData != null && !propertyData.isEmpty()) {
+            for (Map.Entry<String, Object> entry : propertyData.entrySet()) {
+                json.append(",\"").append(escapeJson(entry.getKey())).append("\":");
+                json.append(formatJsonValue(entry.getValue()));
+            }
+        }
+        return json.toString();
+    }
+
+    private static String formatJsonValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value.toString();
+        }
+        return "\"" + escapeJson(String.valueOf(value)) + "\"";
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static String buildLegacyMapBase64() {
@@ -411,14 +443,14 @@ public final class MapBuilder {
 
     private static String buildLegacyBotsJson() {
         return "["
-            + botJson("baloncuBengu", "ديانا", 35, 24, 1, 1, 1, "SimpleBotMessageProperty") + ","
-            + botJson("guvenlik2", "حارس X", 24, 35, 1, 1, 1, "SimpleBotMessageProperty") + ","
-            + botJson("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, 1, "SimpleBotMessageProperty") + ","
-            + botJson("tahsin", "الساعي تحسين", 24, 28, 1, 1, 1, "SimpleBotMessageProperty") + ","
-            + botJson("beggars", "فقير", 46, 22, 1, 1, 1, "SimpleBotMessageProperty") + ","
-            + botJson("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6, 1, "SimpleBotMessageProperty") + ","
-            + botJson("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3, 1, "SimpleBotMessageProperty") + ","
-            + botJson("newspaperStand3", "newspaperStand3", 22, 23, 4, 2, 1, "SimpleBotMessageProperty")
+            + botJson("baloncuBengu", "ديانا", 35, 24, 1, 1, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("guvenlik2", "حارس X", 24, 35, 1, 1, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("airportBillboardSmall", "airportBillboardSmall", 9, 22, 3, 2, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("tahsin", "الساعي تحسين", 24, 28, 1, 1, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("beggars", "فقير", 46, 22, 1, 1, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("giftStandNew", "ستاند الهدايا", 29, 2, 2, 6, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("sanalikaxKapiBot", "sanalikaxKapiBot", 22, 36, 3, 3, 1, "SimpleBotMessageProperty", null) + ","
+            + botJson("newspaperStand3", "newspaperStand3", 22, 23, 4, 2, 1, "SimpleBotMessageProperty", null)
             + "]";
     }
 
