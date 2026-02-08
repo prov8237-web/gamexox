@@ -57,26 +57,23 @@ public class ComplaintActionHandler extends OsBaseHandler {
         String storedReporter = report != null ? preferredReporterId(report) : complaint != null ? complaint.reporterId : "unknown";
         String storedReported = report != null ? preferredReportedId(report) : complaint != null ? complaint.targetId : "unknown";
         String modTraceId = buildTraceId(action, id);
-        trace("[MOD_IN] trace=" + modTraceId + " action=" + action + " admin=" + sender.getName()
-                + " reportId=" + id + " reportedRaw=" + reportedParam + " storedReportedId=" + storedReported);
+        String actorId = HandlerUtils.readStringAny(data, "actorId", "adminId", "avatarID", "avatarId");
+        trace("[MOD_REQ] trace=" + modTraceId + " action=" + action + " actorName=" + sender.getName()
+                + " actorId=" + actorId + " targetInput=" + reportedParam + " reportId=" + id
+                + " duration=" + duration + " reason=" + reason);
 
         ResolveResult resolveResult = null;
         if (isModerationAction(action)) {
-            resolveResult = resolveTargetUserStrong(storedReported, reportedParam);
-            String resolvedName = resolveResult.user != null ? resolveResult.user.getName() : "null";
-            String resolvedSessionId = resolveResult.user != null && resolveResult.user.getSession() != null
-                    ? String.valueOf(resolveResult.user.getSession().getId()) : "null";
-            trace("[MOD_RESOLVE] trace=" + modTraceId + " targetResolved=" + (resolveResult.user != null)
-                    + " targetName=" + resolvedName
-                    + " targetSessionId=" + resolvedSessionId
-                    + " matchedBy=" + resolveResult.matchedBy);
+            resolveResult = resolveTarget(modTraceId, reportedParam, report);
             if (resolveResult.user == null) {
                 SFSObject res = new SFSObject();
                 res.putBool("ok", false);
-                res.putUtfString("error", "TARGET_NOT_FOUND");
+                res.putUtfString("reason", "TARGET_NOT_FOUND");
+                res.putUtfString("trace", modTraceId);
                 res.putLong("id", id);
                 res.putUtfString("action", action);
                 sendResponseWithRid("complaintaction", res, sender, rid);
+                trace("[MOD_FAIL] trace=" + modTraceId + " reason=TARGET_NOT_FOUND");
                 return;
             }
         }
@@ -97,16 +94,12 @@ public class ComplaintActionHandler extends OsBaseHandler {
         } else if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
             ok = report != null ? store.resolveReport(id) : store.resolveComplaint(id);
         } else if ("warn".equals(action)) {
-            trace("[MOD_WARN_REQ] trace=" + modTraceId + " actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id);
             ok = warnTarget(resolveResult.user, reason, modTraceId);
         } else if ("kick".equals(action)) {
-            trace("[MOD_KICK_REQ] trace=" + modTraceId + " actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id);
-            ok = kickTarget(resolveResult.user, modTraceId);
+            ok = kickUserHard(resolveResult.user, modTraceId);
         } else if ("ban".equals(action) || "chatban".equals(action)) {
-            trace("[MOD_BAN_REQ] trace=" + modTraceId + " actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id + " type=CHAT duration=" + duration);
             ok = banTarget(resolveResult.user, "CHAT", duration, id, modTraceId, storedReported);
         } else if ("loginban".equals(action) || "banlogin".equals(action)) {
-            trace("[MOD_BAN_REQ] trace=" + modTraceId + " actor=" + sender.getName() + " target=" + storedReported + " reportId=" + id + " type=LOGIN duration=" + duration);
             ok = banTarget(resolveResult.user, "LOGIN", duration, id, modTraceId, storedReported);
         } else if (usesInboxFlags && report != null) {
             ok = true;
@@ -129,18 +122,8 @@ public class ComplaintActionHandler extends OsBaseHandler {
     private boolean warnTarget(User target, String reason, String traceId) {
         if (target == null) return false;
         String msg = reason != null ? reason : "WARNING";
-        return sendAdminMessage(target, "Municipalty Message", msg, null, traceId);
-    }
-
-    private boolean kickTarget(User target, String traceId) {
-        if (target == null) return false;
-        boolean ok = false;
-        String methodUsed = "disconnectUser";
-        try {
-            getApi().disconnectUser(target);
-            ok = true;
-        } catch (Exception ignored) {}
-        trace("[MOD_KICK] trace=" + traceId + " methodUsed=" + methodUsed + " ok=" + ok);
+        boolean ok = sendAdminMessage(target, "Municipalty Message", msg, null, traceId);
+        trace("[MOD_WARN] trace=" + traceId + " sent=" + (ok ? 1 : 0));
         return ok;
     }
 
@@ -153,9 +136,14 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (rec == null) return false;
         store.incrementBanCount(HandlerUtils.normalizeAvatarId(storedReportedId));
 
+        long startMs = rec.startEpochSec * 1000L;
         long endMs = rec.endEpochSec < 0 ? -1 : rec.endEpochSec * 1000L;
-        SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
+        int timeLeft = rec.timeLeftSec(System.currentTimeMillis() / 1000);
+        SFSObject payload = new SFSObject();
         payload.putUtfString("type", banType);
+        payload.putLong("startDate", startMs);
+        payload.putLong("endDate", endMs);
+        payload.putInt("timeLeft", timeLeft);
         payload.putUtfString("trace", traceId);
         boolean sent = false;
         try {
@@ -166,7 +154,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         sendBanAdminMessage(target, banType, rec.endDate, reportId, traceId);
 
         if ("LOGIN".equalsIgnoreCase(banType) || "CHAT".equalsIgnoreCase(banType)) {
-            try { getApi().disconnectUser(target); } catch (Exception ignored) {}
+            kickUserHard(target, traceId);
         }
         return true;
     }
@@ -209,6 +197,59 @@ public class ComplaintActionHandler extends OsBaseHandler {
         trace("[MOD_SEND_ADMINMSG] trace=" + traceId + " ok=true payloadKeys=" + payload.getKeys());
     }
 
+    private boolean kickUserHard(User target, String traceId) {
+        if (target == null) return false;
+        boolean ok = false;
+        String method = "disconnect";
+        int[] retries = new int[]{0};
+        try {
+            getApi().disconnectUser(target);
+            ok = true;
+        } catch (Exception ignored) {}
+        if (target.getSession() != null) {
+            if (tryLogout(target)) {
+                method = "disconnect+logout";
+            }
+        }
+        scheduleKickRetry(target, traceId, retries);
+        trace("[MOD_KICK] trace=" + traceId + " method=" + method + " ok=" + ok + " retry=" + retries[0]);
+        return ok;
+    }
+
+    private void scheduleKickRetry(User target, String traceId, int[] retries) {
+        if (target == null) return;
+        Zone z = getZone();
+        if (z == null) return;
+        String name = target.getName();
+        new Thread(() -> {
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException ignored) {}
+            User stillThere = z.getUserByName(name);
+            if (stillThere != null) {
+                retries[0] = retries[0] + 1;
+                try {
+                    getApi().disconnectUser(stillThere);
+                } catch (Exception ignored) {}
+                trace("[MOD_KICK_RETRY] trace=" + traceId + " count=" + retries[0]);
+            }
+        }).start();
+    }
+
+    private boolean tryLogout(User target) {
+        try {
+            java.lang.reflect.Method logout = getApi().getClass().getMethod("logout", User.class);
+            logout.invoke(getApi(), target);
+            return true;
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Method logoutUser = getApi().getClass().getMethod("logoutUser", User.class);
+            logoutUser.invoke(getApi(), target);
+            return true;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     private void pushComplaintListToSecurityUsers() {
         InMemoryStore store = getStore();
         SFSObject payload = ComplaintListHandler.buildComplaintPayload(store, "OPEN", 50);
@@ -239,44 +280,6 @@ public class ComplaintActionHandler extends OsBaseHandler {
         return report.reportedId;
     }
 
-    private User resolveTargetUser(String avatarIdOrName, String avatarNameFallback) {
-        try {
-            Zone z = getZone();
-            if (z == null) return null;
-            if (avatarIdOrName != null && !avatarIdOrName.trim().isEmpty()) {
-                String normalized = HandlerUtils.normalizeAvatarId(avatarIdOrName);
-                User u = z.getUserByName(avatarIdOrName);
-                if (u != null) return u;
-                for (User cand : z.getUserList()) {
-                    try {
-                        if (cand == null) continue;
-                        if (matchesNormalized(avatarIdOrName, readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"), normalized)) return cand;
-                        String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (matchesNormalized(avatarIdOrName, playerIdVar, normalized)) return cand;
-                        Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && matchesNormalized(avatarIdOrName, playerIdProp.toString(), normalized)) return cand;
-                    } catch (Exception ignored) {}
-                }
-            }
-            if (avatarNameFallback != null && !avatarNameFallback.trim().isEmpty()) {
-                String normalizedFallback = HandlerUtils.normalizeAvatarId(avatarNameFallback);
-                User u2 = z.getUserByName(avatarNameFallback);
-                if (u2 != null) return u2;
-                for (User cand : z.getUserList()) {
-                    try {
-                        if (cand == null) continue;
-                        if (matchesNormalized(avatarNameFallback, readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"), normalizedFallback)) return cand;
-                        String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (matchesNormalized(avatarNameFallback, playerIdVar, normalizedFallback)) return cand;
-                        Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && matchesNormalized(avatarNameFallback, playerIdProp.toString(), normalizedFallback)) return cand;
-                    } catch (Exception ignored) {}
-                }
-            }
-        } catch (Exception ignored) {}
-        return null;
-    }
-
     private boolean matchesNormalized(String rawInput, String candidate, String normalizedInput) {
         if (candidate == null || rawInput == null) return false;
         String normalizedCandidate = HandlerUtils.normalizeAvatarId(candidate);
@@ -303,36 +306,56 @@ public class ComplaintActionHandler extends OsBaseHandler {
         return act + "-" + reportId + "-" + System.currentTimeMillis();
     }
 
-    private ResolveResult resolveTargetUserStrong(String storedReportedId, String reportedRaw) {
-        String raw = coalesce(storedReportedId, reportedRaw);
-        String normalized = HandlerUtils.normalizeAvatarId(raw);
+    private ResolveResult resolveTarget(String traceId, String reportedParam, InMemoryStore.ReportRecord report) {
         Zone z = getZone();
-        if (z == null) return new ResolveResult(null, "zone:null");
+        if (z == null) return new ResolveResult(null, "zone:null", 0);
+        String raw = coalesce(reportedParam, report != null ? report.reportedIdRaw : null);
+        String normalized = HandlerUtils.normalizeAvatarId(raw);
+        int candidatesChecked = 0;
 
         String[] nameCandidates = buildNameCandidates(raw, normalized);
         for (String candidate : nameCandidates) {
             if (isBlank(candidate)) continue;
+            candidatesChecked++;
             User u = z.getUserByName(candidate);
-            if (u != null) return new ResolveResult(u, "name");
+            if (u != null) {
+                logTarget(traceId, u, "name", candidatesChecked);
+                return new ResolveResult(u, "name", candidatesChecked);
+            }
         }
 
         String numeric = extractNumeric(raw);
         for (User cand : z.getUserList()) {
             if (cand == null) continue;
+            candidatesChecked++;
             String userName = cand.getName();
-            if (matchesNormalized(raw, userName, normalized)) return new ResolveResult(cand, "scan:name");
+            if (matchesNormalized(raw, userName, normalized)) {
+                logTarget(traceId, cand, "scan:name", candidatesChecked);
+                return new ResolveResult(cand, "scan:name", candidatesChecked);
+            }
             if (!isBlank(numeric) && matchesNormalized(numeric, userName, HandlerUtils.normalizeAvatarId(numeric))) {
-                return new ResolveResult(cand, "scan:name:numeric");
+                logTarget(traceId, cand, "scan:name:numeric", candidatesChecked);
+                return new ResolveResult(cand, "scan:name:numeric", candidatesChecked);
             }
             String avatarIdVar = readUserVarAsString(cand, "avatarID", "avatarId");
-            if (matchesNormalized(raw, avatarIdVar, normalized)) return new ResolveResult(cand, "var:avatarID");
+            if (matchesNormalized(raw, avatarIdVar, normalized)) {
+                logTarget(traceId, cand, "var:avatarID", candidatesChecked);
+                return new ResolveResult(cand, "var:avatarID", candidatesChecked);
+            }
             String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-            if (matchesNormalized(raw, playerIdVar, normalized)) return new ResolveResult(cand, "var:playerID");
+            if (matchesNormalized(raw, playerIdVar, normalized)) {
+                logTarget(traceId, cand, "var:playerID", candidatesChecked);
+                return new ResolveResult(cand, "var:playerID", candidatesChecked);
+            }
             String avatarNameVar = readUserVarAsString(cand, "avatarName");
-            if (matchesNormalized(raw, avatarNameVar, normalized)) return new ResolveResult(cand, "var:avatarName");
+            if (matchesNormalized(raw, avatarNameVar, normalized)) {
+                logTarget(traceId, cand, "var:avatarName", candidatesChecked);
+                return new ResolveResult(cand, "var:avatarName", candidatesChecked);
+            }
         }
 
-        return new ResolveResult(null, "not-found");
+        trace("[MOD_TGT] trace=" + traceId + " found=false matchMode=not-found targetName=null targetVars={} candidates=" + candidatesChecked);
+        return new ResolveResult(null, "not-found", candidatesChecked);
     }
 
     private String[] buildNameCandidates(String raw, String normalized) {
@@ -367,10 +390,12 @@ public class ComplaintActionHandler extends OsBaseHandler {
     private static final class ResolveResult {
         private final User user;
         private final String matchedBy;
+        private final int candidatesChecked;
 
-        private ResolveResult(User user, String matchedBy) {
+        private ResolveResult(User user, String matchedBy, int candidatesChecked) {
             this.user = user;
             this.matchedBy = matchedBy;
+            this.candidatesChecked = candidatesChecked;
         }
     }
 
@@ -389,6 +414,20 @@ public class ComplaintActionHandler extends OsBaseHandler {
             return "[]";
         }
         return keys.toString();
+    }
+
+    private void logTarget(String traceId, User user, String matchMode, int candidatesChecked) {
+        String name = user != null ? user.getName() : "null";
+        String avatarId = readUserVarAsString(user, "avatarID", "avatarId");
+        String avatarName = readUserVarAsString(user, "avatarName");
+        String playerId = readUserVarAsString(user, "playerID", "playerId");
+        String roles = readUserVarAsString(user, "roles");
+        trace("[MOD_TGT] trace=" + traceId
+                + " found=" + (user != null)
+                + " matchMode=" + matchMode
+                + " targetName=" + name
+                + " targetVars={avatarID:" + avatarId + ",avatarName:" + avatarName + ",playerID:" + playerId + ",roles:" + roles + "}"
+                + " candidates=" + candidatesChecked);
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {

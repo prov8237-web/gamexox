@@ -74,14 +74,24 @@ public class ServerEventHandler extends BaseServerEventHandler {
             if (store.isIpBanned(ip, "LOGIN")) {
                 // send banned event
                 SFSObject banned = new SFSObject();
+                InMemoryStore.BanRecord match = null;
                 long now = System.currentTimeMillis() / 1000;
                 for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
                     if ("LOGIN".equalsIgnoreCase(br.type)) {
-                        banned = br.toSFSObject(now);
+                        match = br;
                         break;
                     }
                 }
                 String traceId = "enforce-login-" + user.getName() + "-" + System.currentTimeMillis();
+                if (match != null) {
+                    long startMs = match.startEpochSec * 1000L;
+                    long endMs = match.endEpochSec < 0 ? -1 : match.endEpochSec * 1000L;
+                    int timeLeft = match.timeLeftSec(now);
+                    banned.putUtfString("type", "LOGIN");
+                    banned.putLong("startDate", startMs);
+                    banned.putLong("endDate", endMs);
+                    banned.putInt("timeLeft", timeLeft);
+                }
                 banned.putUtfString("trace", traceId);
                 ext.send("banned", banned, user);
                 // disconnect
@@ -98,15 +108,24 @@ public class ServerEventHandler extends BaseServerEventHandler {
             String ip = user.getSession().getAddress();
             if (store.isIpBanned(ip, "CHAT")) {
                 SFSObject banned = new SFSObject();
+                InMemoryStore.BanRecord match = null;
                 long now = System.currentTimeMillis() / 1000;
                 for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
                     if ("CHAT".equalsIgnoreCase(br.type)) {
-                        banned = br.toSFSObject(now);
+                        match = br;
                         break;
                     }
                 }
                 String traceId = "enforce-chat-" + user.getName() + "-" + System.currentTimeMillis();
-                banned.putUtfString("type", "CHAT");
+                if (match != null) {
+                    long startMs = match.startEpochSec * 1000L;
+                    long endMs = match.endEpochSec < 0 ? -1 : match.endEpochSec * 1000L;
+                    int timeLeft = match.timeLeftSec(now);
+                    banned.putUtfString("type", "CHAT");
+                    banned.putLong("startDate", startMs);
+                    banned.putLong("endDate", endMs);
+                    banned.putInt("timeLeft", timeLeft);
+                }
                 banned.putUtfString("trace", traceId);
                 ext.send("banned", banned, user);
                 getApi().disconnectUser(user);
