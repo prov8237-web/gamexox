@@ -83,7 +83,19 @@ package com.oyunstudyosu.property
       
       private function routineMessage() : void
       {
-         var _loc1_:int = NumberUtils.randRange(10,40);
+         var _loc1_:Number = NumberUtils.randRange(10,40);
+         if(data && data.intervalSeconds != null)
+         {
+            _loc1_ = Number(data.intervalSeconds);
+         }
+         else if(data && data.intervalMin != null && data.intervalMax != null)
+         {
+            _loc1_ = NumberUtils.randRange(int(data.intervalMin),int(data.intervalMax));
+         }
+         if(_loc1_ < 1)
+         {
+            _loc1_ = 1;
+         }
          TweenMax.delayedCall(_loc1_,dispatchCasual);
       }
       
