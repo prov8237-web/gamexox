@@ -12,6 +12,7 @@ public class UseDoorHandler extends OsBaseHandler {
         String targetRoom = data.containsKey("roomKey") ? data.getUtfString("roomKey") : MapBuilder.DEFAULT_ROOM_KEY;
         InMemoryStore store = getStore();
         InMemoryStore.UserState state = store.getOrCreateUser(user);
+        String fromRoom = state.getCurrentRoom();
 
         trace("[USEDOOR] " + user.getName() + " -> " + targetRoom + " via " + doorKey);
 
@@ -27,6 +28,8 @@ public class UseDoorHandler extends OsBaseHandler {
                 trace("[USEDOOR] Error: " + e.getMessage());
             }
         }
+        trace("[ROOM_DOOR] from=" + fromRoom + " to=" + targetRoom + " doorId=" + doorKey
+            + " ok=" + (targetRoomObj != null) + " reason=" + (targetRoomObj != null ? "join_ok" : "room_not_found"));
 
         // Client-side room data
         SFSObject res = new SFSObject();
