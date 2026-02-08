@@ -608,7 +608,10 @@ public class ServerEventHandler extends BaseServerEventHandler {
 
     private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
         String targetName = target != null ? target.getName() : "null";
-        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId") : "null";
+        if (targetId == null || targetId.trim().isEmpty()) {
+            targetId = targetName;
+        }
         return "[MOD_SEND] cmd=" + cmd
                 + " trace=" + traceId
                 + " to=" + targetName
