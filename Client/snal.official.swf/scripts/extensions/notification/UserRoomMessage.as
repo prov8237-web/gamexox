@@ -171,6 +171,7 @@ package extensions.notification
             _loc2_.type = "hud";
             _loc2_.params = {};
             _loc2_.params.avatarId = character.id;
+            _loc2_.params.avatarName = character.avatarName;
             _loc2_.params.lastMessage = data.message;
             Sanalika.instance.panelModel.openPanel(_loc2_);
          }

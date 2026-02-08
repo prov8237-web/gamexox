@@ -581,6 +581,7 @@ package org.oyunstudyosu.sanalika.panels.history
             _loc2_.type = PanelType.HUD;
             _loc2_.params = {};
             _loc2_.params.avatarId = this.avatarId;
+            _loc2_.params.avatarName = this.item != null ? this.item.avatarName : null;
             _loc2_.params.lastMessage = this.reportMessage;
             Connectr.instance.panelModel.openPanel(_loc2_);
          }

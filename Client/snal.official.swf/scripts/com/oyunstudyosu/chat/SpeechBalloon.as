@@ -197,6 +197,7 @@ package com.oyunstudyosu.chat
             _loc2_.type = "hud";
             _loc2_.params = {};
             _loc2_.params.avatarId = char.id;
+            _loc2_.params.avatarName = char.avatarName;
             _loc2_.params.lastMessage = lastMessage;
             Sanalika.instance.panelModel.openPanel(_loc2_);
          }

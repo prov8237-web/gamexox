@@ -172,12 +172,18 @@ package org.oyunstudyosu.business
       
       private function reportButtonClicked(param1:MouseEvent) : void
       {
+         var _loc3_:ICharacter = null;
          param1.stopPropagation();
          this.reportButton.visible = false;
          var _loc2_:PanelVO = new PanelVO("ReportPanel");
          _loc2_.params = {};
          _loc2_.params.lastMessage = this.message;
          _loc2_.params.avatarId = this.senderID;
+         _loc3_ = Connectr.instance.engine.scene.getAvatarById(this.senderID);
+         if(_loc3_ != null)
+         {
+            _loc2_.params.avatarName = _loc3_.avatarName;
+         }
          Connectr.instance.panelModel.openPanel(_loc2_);
       }
       

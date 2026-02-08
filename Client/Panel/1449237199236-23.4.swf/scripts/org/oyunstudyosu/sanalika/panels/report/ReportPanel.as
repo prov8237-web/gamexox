@@ -42,6 +42,8 @@ package org.oyunstudyosu.sanalika.panels.report
       public var txtIsPervert:TextField;
       
       private var avatarId:String;
+
+      private var avatarName:String;
       
       private var lastMessage:String;
       
@@ -95,9 +97,19 @@ package org.oyunstudyosu.sanalika.panels.report
       override public function init() : void
       {
          super.init();
-         this.avatarId = data.params.avatarId;
+         var _loc1_:Object = data != null ? data.params : null;
+         this.avatarId = _loc1_ != null && _loc1_.avatarId != null ? _loc1_.avatarId : null;
+         if((this.avatarId == null || String(this.avatarId) == "0" || String(this.avatarId) == "null") && _loc1_ != null && _loc1_.avatarID != null)
+         {
+            this.avatarId = _loc1_.avatarID;
+         }
+         this.avatarName = _loc1_ != null ? _loc1_.avatarName : null;
+         if((this.avatarName == null || String(this.avatarName) == "null") && _loc1_ != null && _loc1_.name != null)
+         {
+            this.avatarName = _loc1_.name;
+         }
          dragHandler = this.mcDragger;
-         this.lastMessage = data.params.lastMessage;
+         this.lastMessage = _loc1_ != null ? _loc1_.lastMessage : null;
          if(this.sChat == null)
          {
             this.sChat = TextFieldManager.convertAsArabicTextField(getChildByName("lblChat") as TextField,true,true);
@@ -141,6 +153,10 @@ package org.oyunstudyosu.sanalika.panels.report
          this.inpFormTextField.addEventListener(FocusEvent.FOCUS_OUT,this.focusOut);
          this.reportData = {};
          this.reportData.reportedAvatarID = this.avatarId;
+         if(this.avatarName != null)
+         {
+            this.reportData.reportedAvatarName = this.avatarName;
+         }
          this.reportData.message = this.lastMessage;
          this.reportData.isPervert = this.isPervert;
          this.btnSend.addEventListener(MouseEvent.CLICK,this.onReportUser);
