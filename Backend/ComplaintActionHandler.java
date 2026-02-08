@@ -50,6 +50,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         boolean ok = true;
 
         boolean usesInboxFlags = isCorrect != null || isPervert != null || isAbuse != null;
+        String targetIdForLog = report != null ? report.reportedId : complaint != null ? complaint.targetId : "unknown";
 
         if (report != null && usesInboxFlags) {
             if (isPervert != null) {
@@ -64,13 +65,17 @@ public class ComplaintActionHandler extends OsBaseHandler {
         } else if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
             ok = report != null ? store.resolveReport(id) : store.resolveComplaint(id);
         } else if ("warn".equals(action)) {
+            trace("[MOD_WARN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id);
             ok = report != null ? warnTarget(report, reason) : warnTarget(complaint, reason);
         } else if ("kick".equals(action)) {
+            trace("[MOD_KICK_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id);
             ok = report != null ? kickTarget(report) : kickTarget(complaint);
         } else if ("ban".equals(action) || "chatban".equals(action)) {
-            ok = report != null ? banTarget(report, "CHAT", duration) : banTarget(complaint, "CHAT", duration);
+            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id + " type=CHAT duration=" + duration);
+            ok = report != null ? banTarget(report, "CHAT", duration, id) : banTarget(complaint, "CHAT", duration, id);
         } else if ("loginban".equals(action) || "banlogin".equals(action)) {
-            ok = report != null ? banTarget(report, "LOGIN", duration) : banTarget(complaint, "LOGIN", duration);
+            trace("[MOD_BAN_REQ] actor=" + sender.getName() + " target=" + targetIdForLog + " reportId=" + id + " type=LOGIN duration=" + duration);
+            ok = report != null ? banTarget(report, "LOGIN", duration, id) : banTarget(complaint, "LOGIN", duration, id);
         } else if (usesInboxFlags && report != null) {
             ok = true;
         } else {
@@ -91,12 +96,15 @@ public class ComplaintActionHandler extends OsBaseHandler {
         User target = resolveTargetUser(report.reportedId, null);
         if (target == null) return false;
 
+        String msg = reason != null ? reason : "WARNING";
         SFSObject payload = new SFSObject();
         payload.putUtfString("from", "SYSTEM");
         payload.putUtfString("type", "WARN");
-        payload.putUtfString("message", reason != null ? reason : "WARNING");
+        payload.putUtfString("message", msg);
         try {
             getParentExtension().send("cmd2user", payload, target);
+            sendAdminMessage(target, "Municipalty Message", msg, null);
+            trace("[MOD_WARN_SENT] target=" + target.getName());
         } catch (Exception ignored) {}
         return true;
     }
@@ -105,12 +113,15 @@ public class ComplaintActionHandler extends OsBaseHandler {
         User target = resolveTargetUser(complaint.targetId, complaint.targetName);
         if (target == null) return false;
 
+        String msg = reason != null ? reason : "WARNING";
         SFSObject payload = new SFSObject();
         payload.putUtfString("from", "SYSTEM");
         payload.putUtfString("type", "WARN");
-        payload.putUtfString("message", reason != null ? reason : "WARNING");
+        payload.putUtfString("message", msg);
         try {
             getParentExtension().send("cmd2user", payload, target);
+            sendAdminMessage(target, "Municipalty Message", msg, null);
+            trace("[MOD_WARN_SENT] target=" + target.getName());
         } catch (Exception ignored) {}
         return true;
     }
@@ -120,6 +131,7 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (target == null) return false;
         try {
             getApi().disconnectUser(target);
+            trace("[MOD_KICK_APPLIED] target=" + target.getName());
             return true;
         } catch (Exception e) {
             return false;
@@ -131,13 +143,14 @@ public class ComplaintActionHandler extends OsBaseHandler {
         if (target == null) return false;
         try {
             getApi().disconnectUser(target);
+            trace("[MOD_KICK_APPLIED] target=" + target.getName());
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private boolean banTarget(InMemoryStore.ComplaintRecord complaint, String banType, int duration) {
+    private boolean banTarget(InMemoryStore.ComplaintRecord complaint, String banType, int duration, long reportId) {
         User target = resolveTargetUser(complaint.targetId, complaint.targetName);
         if (target == null) return false;
 
@@ -151,15 +164,17 @@ public class ComplaintActionHandler extends OsBaseHandler {
         payload.putUtfString("type", banType);
         try {
             getParentExtension().send("banned", payload, target);
+            sendBanAdminMessage(target, banType, rec.endDate, reportId);
+            trace("[MOD_BAN_APPLY] target=" + target.getName() + " type=" + banType + " endDate=" + rec.endDate);
         } catch (Exception ignored) {}
 
-        if ("LOGIN".equalsIgnoreCase(banType)) {
+        if ("LOGIN".equalsIgnoreCase(banType) || "CHAT".equalsIgnoreCase(banType)) {
             try { getApi().disconnectUser(target); } catch (Exception ignored) {}
         }
         return true;
     }
 
-    private boolean banTarget(InMemoryStore.ReportRecord report, String banType, int duration) {
+    private boolean banTarget(InMemoryStore.ReportRecord report, String banType, int duration, long reportId) {
         User target = resolveTargetUser(report.reportedId, null);
         if (target == null) return false;
 
@@ -173,12 +188,45 @@ public class ComplaintActionHandler extends OsBaseHandler {
         payload.putUtfString("type", banType);
         try {
             getParentExtension().send("banned", payload, target);
+            sendBanAdminMessage(target, banType, rec.endDate, reportId);
+            trace("[MOD_BAN_APPLY] target=" + target.getName() + " type=" + banType + " endDate=" + rec.endDate);
         } catch (Exception ignored) {}
 
-        if ("LOGIN".equalsIgnoreCase(banType)) {
+        if ("LOGIN".equalsIgnoreCase(banType) || "CHAT".equalsIgnoreCase(banType)) {
             try { getApi().disconnectUser(target); } catch (Exception ignored) {}
         }
         return true;
+    }
+
+    private void sendAdminMessage(User target, String title, String message, String endDate) {
+        if (target == null) return;
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("title", title);
+        payload.putUtfString("message", message);
+        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+        if (endDate != null) {
+            payload.putUtfString("endDate", endDate);
+        }
+        try {
+            getParentExtension().send("adminMessage", payload, target);
+        } catch (Exception ignored) {}
+    }
+
+    private void sendBanAdminMessage(User target, String banType, String endDate, long reportId) {
+        if (target == null) return;
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("title", "Ban Info");
+        payload.putUtfString("message", "You have been banned by the moderator.");
+        payload.putUtfString("swear", banType);
+        payload.putUtfString("swearTime", String.valueOf(System.currentTimeMillis() / 1000));
+        if (endDate != null) {
+            payload.putUtfString("endDate", endDate);
+        }
+        payload.putLong("reportID", reportId);
+        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+        try {
+            getParentExtension().send("adminMessage", payload, target);
+        } catch (Exception ignored) {}
     }
 
     private void pushComplaintListToSecurityUsers() {
@@ -202,35 +250,44 @@ public class ComplaintActionHandler extends OsBaseHandler {
             Zone z = getZone();
             if (z == null) return null;
             if (avatarIdOrName != null && !avatarIdOrName.trim().isEmpty()) {
+                String normalized = HandlerUtils.normalizeAvatarId(avatarIdOrName);
                 User u = z.getUserByName(avatarIdOrName);
                 if (u != null) return u;
                 for (User cand : z.getUserList()) {
                     try {
                         if (cand == null) continue;
-                        if (avatarIdOrName.equals(readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"))) return cand;
+                        if (matchesNormalized(avatarIdOrName, readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"), normalized)) return cand;
                         String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (avatarIdOrName.equals(playerIdVar)) return cand;
+                        if (matchesNormalized(avatarIdOrName, playerIdVar, normalized)) return cand;
                         Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && avatarIdOrName.equals(playerIdProp.toString())) return cand;
+                        if (playerIdProp != null && matchesNormalized(avatarIdOrName, playerIdProp.toString(), normalized)) return cand;
                     } catch (Exception ignored) {}
                 }
             }
             if (avatarNameFallback != null && !avatarNameFallback.trim().isEmpty()) {
+                String normalizedFallback = HandlerUtils.normalizeAvatarId(avatarNameFallback);
                 User u2 = z.getUserByName(avatarNameFallback);
                 if (u2 != null) return u2;
                 for (User cand : z.getUserList()) {
                     try {
                         if (cand == null) continue;
-                        if (avatarNameFallback.equals(readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"))) return cand;
+                        if (matchesNormalized(avatarNameFallback, readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"), normalizedFallback)) return cand;
                         String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (avatarNameFallback.equals(playerIdVar)) return cand;
+                        if (matchesNormalized(avatarNameFallback, playerIdVar, normalizedFallback)) return cand;
                         Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && avatarNameFallback.equals(playerIdProp.toString())) return cand;
+                        if (playerIdProp != null && matchesNormalized(avatarNameFallback, playerIdProp.toString(), normalizedFallback)) return cand;
                     } catch (Exception ignored) {}
                 }
             }
         } catch (Exception ignored) {}
         return null;
+    }
+
+    private boolean matchesNormalized(String rawInput, String candidate, String normalizedInput) {
+        if (candidate == null || rawInput == null) return false;
+        String normalizedCandidate = HandlerUtils.normalizeAvatarId(candidate);
+        if (normalizedInput != null && normalizedInput.equals(normalizedCandidate)) return true;
+        return rawInput.equals(candidate);
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {

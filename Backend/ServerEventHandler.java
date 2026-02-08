@@ -91,6 +91,28 @@ public class ServerEventHandler extends BaseServerEventHandler {
             // ignore
         }
 
+        // Moderation: CHAT ban check (enforce by disconnecting on login)
+        try {
+            String ip = user.getSession().getAddress();
+            if (store.isIpBanned(ip, "CHAT")) {
+                SFSObject banned = new SFSObject();
+                long now = System.currentTimeMillis() / 1000;
+                for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
+                    if ("CHAT".equalsIgnoreCase(br.type)) {
+                        banned = br.toSFSObject(now);
+                        break;
+                    }
+                }
+                banned.putUtfString("type", "CHAT");
+                ext.send("banned", banned, user);
+                getApi().disconnectUser(user);
+                trace("[MOD_BAN_ENFORCE] user=" + user.getName() + " type=CHAT");
+                return;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
         trace("[SERVER_EVENT] USER_LOGIN init vars for " + user.getName());
     }
 
