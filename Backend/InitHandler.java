@@ -276,7 +276,7 @@ public class InitHandler extends OsBaseHandler {
         SFSObject res = new SFSObject();
         res.putLong("ts", ts);
         res.putUtfString("playerID", customID);
-        String avatarKey = ProtocolConfig.chatEnabled() ? user.getName() : customID;
+        String avatarKey = ProtocolConfig.chatEnabled() ? (isGuest ? customID : user.getName()) : customID;
         res.putUtfString("selectedAvatarID", avatarKey);
         res.putInt("emailActive", 1);
         res.putBool("guest", isGuest);

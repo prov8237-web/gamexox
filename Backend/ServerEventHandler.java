@@ -146,7 +146,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
             
             SFSObject playerData = new SFSObject();
             playerData.putUtfString("type", "PLAYER_JOINED");
-            playerData.putUtfString("avatarID", existingPlayer.getName());
+            playerData.putUtfString("avatarID", resolveAvatarId(existingPlayer));
             playerData.putUtfString("avatarName", existingState.getAvatarName());
             playerData.putUtfString("gender", existingState.getGender());
             playerData.putUtfString("clothes", existingState.getClothesJson());
@@ -164,7 +164,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
         if (!existingPlayers.isEmpty()) {
             SFSObject newPlayerData = new SFSObject();
             newPlayerData.putUtfString("type", "PLAYER_JOINED");
-            newPlayerData.putUtfString("avatarID", user.getName());
+            newPlayerData.putUtfString("avatarID", resolveAvatarId(user));
             newPlayerData.putUtfString("avatarName", userState.getAvatarName());
             newPlayerData.putUtfString("gender", userState.getGender());
             newPlayerData.putUtfString("clothes", userState.getClothesJson());
@@ -212,7 +212,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
         if (!remainingPlayers.isEmpty()) {
             SFSObject leaveData = new SFSObject();
             leaveData.putUtfString("type", "PLAYER_LEFT");
-            leaveData.putUtfString("avatarID", user.getName());
+            leaveData.putUtfString("avatarID", resolveAvatarId(user));
             leaveData.putUtfString("avatarName", state.getAvatarName());
             
             trace("[BROADCAST] Notifying " + remainingPlayers.size() + " players that " + user.getName() + " left");
@@ -248,7 +248,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
             if (!roomPlayers.isEmpty()) {
                 SFSObject disconnectData = new SFSObject();
                 disconnectData.putUtfString("type", "PLAYER_DISCONNECTED");
-                disconnectData.putUtfString("avatarID", user.getName());
+                disconnectData.putUtfString("avatarID", resolveAvatarId(user));
                 disconnectData.putUtfString("avatarName", state.getAvatarName());
                 
                 trace("[BROADCAST] Notifying room about disconnect");
@@ -337,7 +337,7 @@ public class ServerEventHandler extends BaseServerEventHandler {
                 SFSObject payload = new SFSObject();
                 payload.putUtfString("type", "CHAT_MESSAGE");
                 payload.putUtfString("message", message != null ? message : "");
-                payload.putUtfString("senderID", user.getName());
+                payload.putUtfString("senderID", resolveAvatarId(user));
                 payload.putUtfString("senderName", readUserVarAsString(user, "avatarName", user.getName()));
                 payload.putUtfString("senderNick", readUserVarAsString(user, "avatarName", user.getName()));
                 payload.putUtfString("imgPath", readUserVarAsString(user, "imgPath", ""));
@@ -509,6 +509,17 @@ public class ServerEventHandler extends BaseServerEventHandler {
         } catch (Exception ignored) {
             return fallback;
         }
+    }
+
+    private String resolveAvatarId(User user) {
+        if (user == null) {
+            return "";
+        }
+        String playerId = readUserVarAsString(user, "playerID", "");
+        if (playerId != null && !playerId.trim().isEmpty()) {
+            return playerId;
+        }
+        return user.getName();
     }
 
     private String collectUserVarKeys(User user) {

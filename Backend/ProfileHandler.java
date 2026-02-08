@@ -186,7 +186,15 @@ public class ProfileHandler extends OsBaseHandler {
             try {
                 String value = data.getUtfString("avatarID");
                 if (value != null && !value.trim().isEmpty()) {
-                    return value;
+                    String trimmed = value.trim();
+                    if (trimmed.toLowerCase().startsWith("guest#")) {
+                        InMemoryStore.UserState state = getStore().findUserByName(trimmed);
+                        if (state != null && state.getAvatarName() != null && !state.getAvatarName().trim().isEmpty()) {
+                            return state.getAvatarName();
+                        }
+                        return trimmed.substring("guest#".length());
+                    }
+                    return trimmed;
                 }
             } catch (Exception ignored) {
             }

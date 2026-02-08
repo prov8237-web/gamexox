@@ -851,7 +851,20 @@ public class InMemoryStore {
     }
 
     public UserState findUserByName(String name) {
-        return usersByName.get(name);
+        UserState byName = usersByName.get(name);
+        if (byName != null) {
+            return byName;
+        }
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = name.trim();
+        for (UserState state : usersById.values()) {
+            if (state != null && trimmed.equals(state.getAvatarName())) {
+                return state;
+            }
+        }
+        return null;
     }
 
     public RoomState getOrCreateRoom(Room room) {
