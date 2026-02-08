@@ -39,7 +39,8 @@ public class InitHandler extends OsBaseHandler {
             customID = (String) getParentExtension().getParentZone().getProperty(userIP + "_id");
             trace("[INIT] Found existing ID: " + customID);
         } else {
-            customID = String.valueOf(System.currentTimeMillis());
+            long generatedId = 100000000L + user.getId();
+            customID = String.valueOf(generatedId);
             getParentExtension().getParentZone().setProperty(userIP + "_id", customID);
             trace("[INIT] Created new ID: " + customID);
         }
@@ -92,6 +93,10 @@ public class InitHandler extends OsBaseHandler {
             if (genderObj != null) savedGender = (String) genderObj;
             if (nameObj != null) savedName = (String) nameObj;
             trace("[INIT] Loaded saved gender: " + savedGender + ", name: " + savedName);
+        }
+        boolean isGuest = !hasSavedData;
+        if (isGuest) {
+            savedName = "Guest#" + customID;
         }
         state.setGender(savedGender);
         state.setAvatarName(savedName);
@@ -274,9 +279,9 @@ public class InitHandler extends OsBaseHandler {
         String avatarKey = ProtocolConfig.chatEnabled() ? user.getName() : customID;
         res.putUtfString("selectedAvatarID", avatarKey);
         res.putInt("emailActive", 1);
-        res.putBool("guest", false);
-        state.setGuest(true);
-        trace("[GUEST_CREATED] user=" + user.getName() + " guest=true playerID=" + customID);
+        res.putBool("guest", isGuest);
+        state.setGuest(isGuest);
+        trace("[GUEST_CREATED] user=" + user.getName() + " guest=" + isGuest + " playerID=" + customID);
         res.putBool("isBanned", false);
         res.putInt("completedAchievementsCount", 0);
         res.putInt("tutorialStep", 0);

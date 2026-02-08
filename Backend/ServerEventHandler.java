@@ -13,22 +13,8 @@ import com.smartfoxserver.v2.entities.variables.UserVariable;
 import com.smartfoxserver.v2.extensions.BaseServerEventHandler;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 public class ServerEventHandler extends BaseServerEventHandler {
-
-    private static final Set<String> ALLOWED_BOT_KEYS = new HashSet<>(Arrays.asList(
-        "jaberBot",
-        "musa",
-        "egyptmod", 
-        "botmarhab",
-        "fahman",
-        "cenkay",
-        "ulubilge",
-        "batuhandiamond"
-    ));
 
     @Override
     public void handleServerEvent(ISFSEvent event) {
@@ -356,7 +342,8 @@ public class ServerEventHandler extends BaseServerEventHandler {
                 payload.putUtfString("senderNick", readUserVarAsString(user, "avatarName", user.getName()));
                 payload.putUtfString("imgPath", readUserVarAsString(user, "imgPath", ""));
                 payload.putUtfString("gender", readUserVarAsString(user, "gender", ""));
-                ext.send("roommessage", payload, room.getUserList()); // ✅ استخدام ext.send()
+                List<User> recipients = filterBlockedRecipients(user, room.getUserList(), ext.getStore());
+                ext.send("roommessage", payload, recipients); // ✅ استخدام ext.send()
                 trace("[CHAT_EXT_OUT] event=roommessage keys=" + payload.getKeys());
             }
         }
@@ -378,17 +365,16 @@ public class ServerEventHandler extends BaseServerEventHandler {
             return false;
         }
         
-        String botKey = parts[0].trim().toLowerCase();
-        
-        // Check if the key is in allowed bot keys
-        return ALLOWED_BOT_KEYS.contains(botKey);
+        String botKey = parts[0].trim();
+
+        return BotMessageCatalog.resolve(botKey) != null;
     }
 
     // ✅ NEW METHOD: Handle bot message from chat
     private void handleBotMessageFromChat(User user, Room room, String message, MainExtension ext) { // ✅ إضافة ext
         try {
             String[] parts = message.split(":", 2);
-            String botKey = parts[0].trim().toLowerCase();
+            String botKey = parts[0].trim();
             String botMessage = parts.length > 1 ? parts[1].trim() : "";
             
             trace("🔑 Bot Key: " + botKey);
@@ -401,6 +387,10 @@ public class ServerEventHandler extends BaseServerEventHandler {
             
             // Prepare bot data
             SFSObject botData = prepareBotData(botKey, botMessage);
+            if (botData == null) {
+                trace("❌ Unknown bot key, skipping bot message: " + botKey);
+                return;
+            }
             
             // Send to all users in room
             List<User> usersInRoom = room.getUserList();
@@ -418,99 +408,41 @@ public class ServerEventHandler extends BaseServerEventHandler {
 
     // ✅ NEW METHOD: Prepare bot data with colors (matching original game format)
     private SFSObject prepareBotData(String botKey, String message) {
+        BotMessageCatalog.BotDefinition definition = BotMessageCatalog.resolve(botKey);
+        if (definition == null) {
+            return null;
+        }
         SFSObject botData = new SFSObject();
-        botData.putUtfString("botKey", botKey);
+        botData.putUtfString("botKey", definition.getKey());
         botData.putUtfString("message", message);
         botData.putInt("duration", 20);
         botData.putInt("version", 1);
-        
-        // Build colors array as STRING (matching original format)
-        String colorsJson = "";
-        
-        switch(botKey) {
-            case "musa":
-                colorsJson = "[\"FF5722\",\"FFFFFF\",\"D84315\",\"E64A19\"]";
-                break;
-            case "egyptmod":
-                colorsJson = "[\"1E88E5\",\"FFFFFF\",\"0D47A1\",\"1565C0\"]";
-                break;
-            case "botMarhab":
-                colorsJson = "[\"43A047\",\"FFFFFF\",\"1B5E20\",\"2E7D32\"]";
-                break;
-            case "fahman":
-                colorsJson = "[\"8E24AA\",\"FFFFFF\",\"4A148C\",\"6A1B9A\"]";
-                break;
-            case "cenkay":
-                colorsJson = "[\"1a629b\",\"ffffff\",\"3394e0\",\"227abf\"]";
-                break;
-            case "ulubilge":
-                colorsJson = "[\"E53935\",\"FFFFFF\",\"B71C1C\",\"C62828\"]";
-                break;
-            case "batuhandiamond":
-                colorsJson = "[\"00ACC1\",\"FFFFFF\",\"006064\",\"00838F\"]";
-                break;
-            case "canca_bot":
-                colorsJson = "[\"FF9800\",\"FFFFFF\",\"F57C00\",\"EF6C00\"]";
-                break;
-            case "countryBot3":
-                colorsJson = "[\"4CAF50\",\"FFFFFF\",\"2E7D32\",\"388E3C\"]";
-                break;
-            case "countryBot5":
-                colorsJson = "[\"2196F3\",\"FFFFFF\",\"0D47A1\",\"1565C0\"]";
-                break;
-            case "bigboss":
-                colorsJson = "[\"9C27B0\",\"FFFFFF\",\"6A1B9A\",\"7B1FA2\"]";
-                break;
-            case "batuhan":
-                colorsJson = "[\"00BCD4\",\"FFFFFF\",\"00838F\",\"0097A7\"]";
-                break;
-            case "jaberBot":
-                colorsJson = "[\"FF5722\",\"FFFFFF\",\"BF360C\",\"D84315\"]";
-                break;
-            case "janja_bot":
-                colorsJson = "[\"E91E63\",\"FFFFFF\",\"AD1457\",\"C2185B\"]";
-                break;
-            case "kion_bot":
-                colorsJson = "[\"673AB7\",\"FFFFFF\",\"4527A0\",\"512DA8\"]";
-                break;
-            case "kozalak_bot":
-                colorsJson = "[\"795548\",\"FFFFFF\",\"4E342E\",\"5D4037\"]";
-                break;
-            case "moroccoBot":
-                colorsJson = "[\"C62828\",\"FFFFFF\",\"B71C1C\",\"D32F2F\"]";
-                break;
-            case "musicBot":
-                colorsJson = "[\"9C27B0\",\"FFFFFF\",\"6A1B9A\",\"7B1FA2\"]";
-                break;
-            case "musicStoreBot":
-                colorsJson = "[\"FF9800\",\"FFFFFF\",\"F57C00\",\"EF6C00\"]";
-                break;
-            case "pierbeachbot3":
-                colorsJson = "[\"00ACC1\",\"FFFFFF\",\"00838F\",\"0097A7\"]";
-                break;
-            case "botAlgeria":
-                colorsJson = "[\"008000\",\"FFFFFF\",\"006400\",\"228B22\"]";
-                break;
-            default:
-                colorsJson = "[\"607D8B\",\"FFFFFF\",\"37474F\",\"455A64\"]";
-        }
-        
-        // Put as STRING, not SFSArray (matching original game)
-        botData.putUtfString("colors", colorsJson);
-        
-        // Property as STRING JSON (matching original game)
-        botData.putUtfString("property", "{\"cn\":\"SimpleBotMessageProperty\"}");
-        
-        // Additional fields from original game
-        botData.putUtfString("filters", "[]");
-        botData.putUtfString("title", "");
-        botData.putUtfString("roomToSend", "");
-        botData.putUtfString("date", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S").format(new java.util.Date()));
-        botData.putLong("ts", System.currentTimeMillis() / 1000);
-        
-        trace("🎨 Bot data prepared for: " + botKey);
+        botData.putSFSArray("colors", definition.buildColors());
+        SFSObject property = new SFSObject();
+        property.putUtfString("cn", "SimpleBotMessageProperty");
+        botData.putSFSObject("property", property);
+
+        trace("🎨 Bot data prepared for: " + definition.getKey());
         
         return botData;
+    }
+
+    private List<User> filterBlockedRecipients(User sender, List<User> recipients, InMemoryStore store) {
+        if (sender == null || recipients == null || store == null) {
+            return recipients;
+        }
+        List<User> allowed = new ArrayList<>();
+        String senderId = sender.getName();
+        for (User recipient : recipients) {
+            if (recipient == null) {
+                continue;
+            }
+            InMemoryStore.UserState recipientState = store.getOrCreateUser(recipient);
+            if (recipientState == null || !recipientState.isBlocked(senderId)) {
+                allowed.add(recipient);
+            }
+        }
+        return allowed;
     }
 
     private boolean isAdminAnnouncementCommand(String message) {

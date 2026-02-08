@@ -5,7 +5,6 @@ import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
-import com.smartfoxserver.v2.entities.data.SFSArray;
 import java.util.List;
 
 public class SimpleBotMessageHandler extends BaseClientRequestHandler {
@@ -24,24 +23,24 @@ public class SimpleBotMessageHandler extends BaseClientRequestHandler {
                 return;
             }
             
+            BotMessageCatalog.BotDefinition definition = BotMessageCatalog.resolve(key);
+            if (definition == null) {
+                trace("❌ Unknown bot key: " + key);
+                return;
+            }
+
             SFSObject botData = new SFSObject();
-            botData.putUtfString("botKey", key);
+            botData.putUtfString("botKey", definition.getKey());
             botData.putUtfString("message", msg);
             botData.putInt("duration", 15);
             botData.putInt("version", 1);
-            
-            SFSArray colors = new SFSArray();
-            colors.addUtfString("1E88E5");
-            colors.addUtfString("FFFFFF");
-            colors.addUtfString("0D47A1");
-            colors.addUtfString("1565C0");
-            botData.putSFSArray("colors", colors);
+            botData.putSFSArray("colors", definition.buildColors());
             
             SFSObject property = new SFSObject();
             property.putUtfString("cn", "SimpleBotMessageProperty");
             botData.putSFSObject("property", property);
             
-            getParentExtension().send("botmessage", botData, room.getUserList());
+            getParentExtension().send("botMessage", botData, room.getUserList());
             
             trace("✅ Simple bot message sent: " + key + " - " + msg);
             
