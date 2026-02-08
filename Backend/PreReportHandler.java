@@ -19,10 +19,10 @@ public class PreReportHandler extends OsBaseHandler {
         int rid = extractRid(params);
         String command = resolveCommand(sender);
 
-        String targetId = readStringAny(data, new String[]{"avatarID","avatarId","targetId","toId","id","uid"}, "");
-        String targetName = readStringAny(data, new String[]{"avatarName","targetName","toName","name"}, "");
-        String text = readStringAny(data, new String[]{"text","msg","message","chat","body"}, null);
-        String reason = readStringAny(data, new String[]{"reason","type","category"}, null);
+        String targetId = HandlerUtils.readStringAny(data, "avatarID", "avatarId", "targetId", "toId", "id", "uid");
+        String targetName = HandlerUtils.readStringAny(data, "avatarName", "targetName", "toName", "name");
+        String text = HandlerUtils.readStringAny(data, "text", "msg", "message", "chat", "body");
+        String reason = HandlerUtils.readStringAny(data, "reason", "type", "category");
 
         Room room = sender.getLastJoinedRoom();
         String roomName = room != null ? room.getName() : readStringAny(data, new String[]{"room","roomName"}, "");
@@ -30,10 +30,40 @@ public class PreReportHandler extends OsBaseHandler {
         InMemoryStore store = getStore();
         InMemoryStore.UserState st = store.getOrCreateUser(sender);
 
-        String reporterId = String.valueOf(st.getUserId());
+        String reporterRaw = sender.getName();
+        String reporterNorm = HandlerUtils.normalizeAvatarId(reporterRaw);
+        String reporterId = reporterNorm.isEmpty() ? reporterRaw : reporterNorm;
         String reporterName = st.getAvatarName() != null ? st.getAvatarName() : sender.getName();
 
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            targetId = resolveTargetIdFallback(targetName);
+        }
+        String normalizedTargetId = HandlerUtils.normalizeAvatarId(targetId);
+        int banCount = store.getBanCount(normalizedTargetId);
+        trace("[REPORT_CREATE_IN] reporterRaw=" + reporterRaw + " reportedRaw=" + targetId + " messageRaw=" + text + " commentRaw=" + reason + " isPervert=0");
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            trace("[RPT_WARN_ZERO] trace=prereport-" + sender.getName() + "-" + System.currentTimeMillis() + " reportedRaw=" + targetId);
+        }
+        if (isBlank(text) || "0".equals(text)) {
+            trace("[REPORT_CREATE_WARN] source=request messageRaw=" + text);
+        }
+        if (isBlank(reason) || "0".equals(reason)) {
+            trace("[REPORT_CREATE_WARN] source=request commentRaw=" + reason);
+        }
+        if (isBlank(targetId) || "0".equals(targetId)) {
+            SFSObject res = new SFSObject();
+            res.putBool("ok", false);
+            res.putUtfString("errorCode", "MISSING_ITEM");
+            sendResponseWithRid(command, res, sender, rid);
+            return;
+        }
+
         long complaintId = store.addComplaint(reporterId, reporterName, targetId, targetName, roomName, text, reason);
+        store.addReport(reporterRaw, reporterNorm, targetId, normalizedTargetId, text, reason, 0, banCount, 0);
+        trace("[REPORT_CREATE_STORE] id=" + complaintId + " reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId + " message=" + text + " comment=" + reason);
+        if (isBlank(reporterNorm) || isBlank(normalizedTargetId)) {
+            trace("[REPORT_CREATE_WARN] source=store reporterId=" + reporterNorm + " reportedId=" + normalizedTargetId);
+        }
 
         // ACK to reporter
         SFSObject res = new SFSObject();
@@ -60,39 +90,18 @@ public class PreReportHandler extends OsBaseHandler {
 
     private void pushComplaintListToSecurityUsers() {
         InMemoryStore store = getStore();
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints("OPEN", 50);
-
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) {
-            arr.addSFSObject(r.toSFSObject());
-        }
-
-        SFSObject payload = new SFSObject();
-        payload.putBool("ok", true);
-        payload.putSFSArray("list", arr);
+        SFSObject payload = ComplaintListHandler.buildComplaintPayload(store, "OPEN", 50);
 
         try {
             Zone z = getZone();
             if (z == null) return;
             for (User u : z.getUserList()) {
                 if (u == null) continue;
-                if (isSecurityUser(u, store)) {
+                if (ComplaintListHandler.isSecurityUser(u, store)) {
                     sendValidated(u, "complaintlist", payload);
                 }
             }
         } catch (Exception ignored) {}
-    }
-
-    private boolean isSecurityUser(User u, InMemoryStore store) {
-        try {
-            InMemoryStore.UserState st = store.getOrCreateUser(u);
-            String roles = st.getRoles();
-            return PermissionCodec.hasPermission(roles, AvatarPermissionIds.SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.EDITOR_SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.CARD_SECURITY);
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {
@@ -106,5 +115,26 @@ public class PreReportHandler extends OsBaseHandler {
             } catch (Exception ignored) {}
         }
         return def;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String resolveTargetIdFallback(String targetName) {
+        if (isBlank(targetName)) {
+            return "";
+        }
+        try {
+            Zone z = getZone();
+            if (z != null) {
+                User byName = z.getUserByName(targetName);
+                if (byName != null) {
+                    String avatarIdVar = HandlerUtils.readUserVarAsString(byName, "avatarID", "avatarId", "avatarName");
+                    return avatarIdVar != null ? avatarIdVar : byName.getName();
+                }
+            }
+        } catch (Exception ignored) {}
+        return targetName;
     }
 }

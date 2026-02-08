@@ -4,7 +4,7 @@ package src5;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.Zone;
 import com.smartfoxserver.v2.entities.data.*;
-import java.util.List;
+import com.smartfoxserver.v2.entities.variables.UserVariable;
 
 /**
  * Knights/Security panel actions on a complaint:
@@ -19,10 +19,10 @@ public class ComplaintActionHandler extends OsBaseHandler {
         int rid = extractRid(params);
         InMemoryStore store = getStore();
 
-        if (!isSecurityUser(sender, store)) {
+        if (!ComplaintListHandler.isSecurityUser(sender, store)) {
             SFSObject denied = new SFSObject();
             denied.putBool("ok", false);
-            denied.putUtfString("error", "NO_PERMISSION");
+            denied.putUtfString("errorCode", "NO_PERMISSION");
             sendResponseWithRid("complaintaction", denied, sender, rid);
             return;
         }
@@ -33,29 +33,76 @@ public class ComplaintActionHandler extends OsBaseHandler {
         String action = readStringAny(data, new String[]{"action","type","cmd"}, "").toLowerCase();
         int duration = readInt(data, "duration", readInt(data, "time", readInt(data, "seconds", 3600)));
         String reason = readStringAny(data, new String[]{"reason","note","message"}, null);
+        Integer isCorrect = readOptionalInt(data, "isCorrect");
+        Integer isPervert = readOptionalInt(data, "isPervert");
+        Integer isAbuse = readOptionalInt(data, "isAbuse");
+        String reportedParam = HandlerUtils.readStringAny(data, "reportedAvatarID", "reportedId", "avatarID", "avatarId");
 
-        InMemoryStore.ComplaintRecord complaint = store.getComplaint(id);
+        trace("[COMPLAINT_ACTION_IN] action=" + action + " id=" + id + " reportedAvatarID=" + reportedParam + " duration=" + duration + " reason=" + reason);
 
-        if (complaint == null) {
+        InMemoryStore.ReportRecord report = store.getReport(id);
+        InMemoryStore.ComplaintRecord complaint = report == null ? store.getComplaint(id) : null;
+
+        if (report == null && complaint == null) {
             SFSObject res = new SFSObject();
             res.putBool("ok", false);
-            res.putUtfString("error", "NOT_FOUND");
+            res.putUtfString("errorCode", "NOT_FOUND");
             sendResponseWithRid("complaintaction", res, sender, rid);
             return;
         }
 
         boolean ok = true;
 
-        if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
-            ok = store.resolveComplaint(id);
+        boolean usesInboxFlags = isCorrect != null || isPervert != null || isAbuse != null;
+        String storedReporter = report != null ? preferredReporterId(report) : complaint != null ? complaint.reporterId : "unknown";
+        String storedReported = report != null ? preferredReportedId(report) : complaint != null ? complaint.targetId : "unknown";
+        String modTraceId = buildTraceId(action, id);
+        String actorId = HandlerUtils.readStringAny(data, "actorId", "adminId", "avatarID", "avatarId");
+        trace("[MOD_REQ] trace=" + modTraceId + " action=" + action + " actorName=" + sender.getName()
+                + " actorId=" + actorId + " targetInput=" + reportedParam + " reportId=" + id
+                + " duration=" + duration + " reason=" + reason);
+
+        ResolveResult resolveResult = null;
+        if (isModerationAction(action)) {
+            resolveResult = resolveTarget(modTraceId, reportedParam, report);
+            if (resolveResult.user == null) {
+                SFSObject res = new SFSObject();
+                res.putBool("ok", false);
+                res.putUtfString("errorCode", "TARGET_NOT_FOUND");
+                res.putUtfString("trace", modTraceId);
+                res.putLong("id", id);
+                res.putUtfString("action", action);
+                sendResponseWithRid("complaintaction", res, sender, rid);
+                trace("[MOD_TGT_FAIL] trace=" + modTraceId + " reason=TARGET_NOT_FOUND");
+                return;
+            }
+        }
+        if (isBlank(storedReported) || "0".equals(storedReported)) {
+            trace("[COMPLAINT_ACTION_WARN] source=store stored.reportedId=" + storedReported);
+        }
+
+        if (report != null && usesInboxFlags) {
+            if (isPervert != null) {
+                report.isPervert = Math.max(0, isPervert);
+            }
+            if (isAbuse != null) {
+                report.isAbuse = Math.max(0, isAbuse);
+            }
+            if (isCorrect != null) {
+                ok = store.resolveReport(id);
+            }
+        } else if ("resolve".equals(action) || "done".equals(action) || "close".equals(action)) {
+            ok = report != null ? store.resolveReport(id) : store.resolveComplaint(id);
         } else if ("warn".equals(action)) {
-            ok = warnTarget(complaint, reason);
+            ok = warnTarget(resolveResult.user, reason, modTraceId);
         } else if ("kick".equals(action)) {
-            ok = kickTarget(complaint);
+            ok = kickUserHard(resolveResult.user, modTraceId);
         } else if ("ban".equals(action) || "chatban".equals(action)) {
-            ok = banTarget(complaint, "CHAT", duration);
+            ok = banTarget(resolveResult.user, "CHAT", duration, id, modTraceId, storedReported);
         } else if ("loginban".equals(action) || "banlogin".equals(action)) {
-            ok = banTarget(complaint, "LOGIN", duration);
+            ok = banTarget(resolveResult.user, "LOGIN", duration, id, modTraceId, storedReported);
+        } else if (usesInboxFlags && report != null) {
+            ok = true;
         } else {
             ok = false;
         }
@@ -64,126 +111,370 @@ public class ComplaintActionHandler extends OsBaseHandler {
         res.putBool("ok", ok);
         res.putLong("id", id);
         res.putUtfString("action", action);
+        if (!ok) {
+            res.putUtfString("errorCode", "FAILED");
+        }
         sendResponseWithRid("complaintaction", res, sender, rid);
 
-        // push updated list
-        pushComplaintListToSecurityUsers();
-    }
-
-    private boolean warnTarget(InMemoryStore.ComplaintRecord complaint, String reason) {
-        User target = resolveTargetUser(complaint.targetId, complaint.targetName);
-        if (target == null) return false;
-
-        SFSObject payload = new SFSObject();
-        payload.putUtfString("from", "SYSTEM");
-        payload.putUtfString("type", "WARN");
-        payload.putUtfString("message", reason != null ? reason : "WARNING");
-        try {
-            getParentExtension().send("cmd2user", payload, target);
-        } catch (Exception ignored) {}
-        return true;
-    }
-
-    private boolean kickTarget(InMemoryStore.ComplaintRecord complaint) {
-        User target = resolveTargetUser(complaint.targetId, complaint.targetName);
-        if (target == null) return false;
-        try {
-            getApi().disconnectUser(target);
-            return true;
-        } catch (Exception e) {
-            return false;
+        if (ok) {
+            // push updated list
+            pushComplaintListToSecurityUsers();
         }
     }
 
-    private boolean banTarget(InMemoryStore.ComplaintRecord complaint, String banType, int duration) {
-        User target = resolveTargetUser(complaint.targetId, complaint.targetName);
+    private boolean warnTarget(User target, String reason, String traceId) {
+        if (target == null) return false;
+        String msg = safeAdminMessage(reason, "Warning.");
+        SFSObject payload = buildAdminMessagePayload("Municipalty Message", msg, traceId, null);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        boolean ok = sendAdminMessage(target, payload);
+        trace("[MOD_WARN_SEND] trace=" + traceId + " sent=" + (ok ? 1 : 0));
+        return ok;
+    }
+
+    private boolean banTarget(User target, String banType, int duration, long reportId, String traceId, String storedReportedId) {
         if (target == null) return false;
 
         String ip = target.getSession().getAddress();
         InMemoryStore store = getStore();
         InMemoryStore.BanRecord rec = store.addBanForIp(ip, banType, duration);
         if (rec == null) return false;
-        store.incrementBanCount(complaint.targetId);
+        store.incrementBanCount(HandlerUtils.normalizeAvatarId(storedReportedId));
 
-        SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
-        payload.putUtfString("type", banType);
+        long now = System.currentTimeMillis() / 1000;
+        SFSObject payload = HandlerUtils.buildBannedPayload(banType, rec, now, traceId);
+        trace(buildSendLog("banned", traceId, target, payload));
+        boolean sent = false;
         try {
             getParentExtension().send("banned", payload, target);
+            sent = true;
         } catch (Exception ignored) {}
+        String endDateOut = payload.containsKey("endDate") ? payload.getUtfString("endDate") : null;
+        trace("[MOD_BAN_SEND] trace=" + traceId + " type=" + banType + " durationSec=" + duration + " timeLeft=" + payload.getInt("timeLeft") + " endDate=" + endDateOut + " ok=" + sent);
+        sendBanAdminMessage(target, banType, rec.endDate, reportId, traceId);
 
-        if ("LOGIN".equalsIgnoreCase(banType)) {
-            try { getApi().disconnectUser(target); } catch (Exception ignored) {}
+        if ("LOGIN".equalsIgnoreCase(banType) || "CHAT".equalsIgnoreCase(banType)) {
+            kickUserHard(target, traceId);
         }
         return true;
     }
 
+    private boolean sendAdminMessage(User target, String title, String message, String endDate, String traceId) {
+        if (target == null) return false;
+        SFSObject payload = buildAdminMessagePayload(title, message, traceId, endDate);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        return sendAdminMessage(target, payload);
+    }
+
+    private void sendBanAdminMessage(User target, String banType, String endDate, long reportId, String traceId) {
+        if (target == null) return;
+        sendAdminMessage(target, "Municipalty Message", "You have been banned by the moderator.", endDate, traceId);
+    }
+
+    private boolean kickUserHard(User target, String traceId) {
+        if (target == null) return false;
+        boolean ok = false;
+        String method = "disconnect";
+        int[] retries = new int[]{0};
+        SFSObject payload = buildAdminMessagePayload("Municipalty Message", "You were kicked.", traceId, null);
+        trace(buildSendLog("adminMessage", traceId, target, payload));
+        sendAdminMessage(target, payload);
+        try {
+            getApi().disconnectUser(target);
+            ok = true;
+        } catch (Exception ignored) {}
+        if (target.getSession() != null) {
+            if (tryLogout(target)) {
+                method = "disconnect+logout";
+            }
+        }
+        scheduleKickRetry(target, traceId, retries);
+        trace("[MOD_KICK] trace=" + traceId + " target=" + target.getName() + " method=" + method + " disconnected=" + ok + " retry=" + retries[0]);
+        return ok;
+    }
+
+    private boolean sendAdminMessage(User target, SFSObject payload) {
+        if (target == null || payload == null) return false;
+        boolean ok = false;
+        try {
+            getParentExtension().send("adminMessage", payload, target);
+            ok = true;
+        } catch (Exception ignored) {}
+        trace("[MOD_SEND_ADMINMSG] trace=" + payload.getUtfString("trace") + " ok=" + ok + " payloadKeys=" + payload.getKeys());
+        return ok;
+    }
+
+    private SFSObject buildAdminMessagePayload(String title, String message, String traceId, String endDate) {
+        SFSObject payload = new SFSObject();
+        payload.putUtfString("title", safeAdminTitle(title));
+        payload.putUtfString("message", safeAdminMessage(message, "Warning."));
+        payload.putInt("ts", (int) (System.currentTimeMillis() / 1000));
+        payload.putUtfString("trace", traceId == null ? "" : traceId);
+        if (endDate != null) {
+            payload.putUtfString("endDate", endDate);
+        }
+        return payload;
+    }
+
+    private String safeAdminTitle(String title) {
+        if (title == null || title.trim().isEmpty() || "Ban Info".equalsIgnoreCase(title.trim())) {
+            return "Municipalty Message";
+        }
+        return title;
+    }
+
+    private String safeAdminMessage(String message, String fallback) {
+        if (message == null) return fallback;
+        String trimmed = message.trim();
+        if (trimmed.isEmpty()) return fallback;
+        return trimmed;
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private void scheduleKickRetry(User target, String traceId, int[] retries) {
+        if (target == null) return;
+        Zone z = getZone();
+        if (z == null) return;
+        String name = target.getName();
+        new Thread(() -> {
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException ignored) {}
+            User stillThere = z.getUserByName(name);
+            if (stillThere != null) {
+                retries[0] = retries[0] + 1;
+                try {
+                    getApi().disconnectUser(stillThere);
+                } catch (Exception ignored) {}
+                trace("[MOD_KICK_RETRY] trace=" + traceId + " count=" + retries[0]);
+            }
+        }).start();
+    }
+
+    private boolean tryLogout(User target) {
+        try {
+            java.lang.reflect.Method logout = getApi().getClass().getMethod("logout", User.class);
+            logout.invoke(getApi(), target);
+            return true;
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Method logoutUser = getApi().getClass().getMethod("logoutUser", User.class);
+            logoutUser.invoke(getApi(), target);
+            return true;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     private void pushComplaintListToSecurityUsers() {
         InMemoryStore store = getStore();
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints("OPEN", 50);
-
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) arr.addSFSObject(r.toSFSObject());
-
-        SFSObject payload = new SFSObject();
-        payload.putBool("ok", true);
-        payload.putSFSArray("list", arr);
+        SFSObject payload = ComplaintListHandler.buildComplaintPayload(store, "OPEN", 50);
 
         try {
             Zone z = getZone();
             if (z == null) return;
             for (User u : z.getUserList()) {
                 if (u == null) continue;
-                if (isSecurityUser(u, store)) {
+                if (ComplaintListHandler.isSecurityUser(u, store)) {
                     sendValidated(u, "complaintlist", payload);
                 }
             }
         } catch (Exception ignored) {}
     }
 
-    private boolean isSecurityUser(User u, InMemoryStore store) {
-        try {
-            InMemoryStore.UserState st = store.getOrCreateUser(u);
-            String roles = st.getRoles();
-            return PermissionCodec.hasPermission(roles, AvatarPermissionIds.SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.EDITOR_SECURITY)
-                    || PermissionCodec.hasPermission(roles, AvatarPermissionIds.CARD_SECURITY);
-        } catch (Exception e) { return false; }
+    private String preferredReporterId(InMemoryStore.ReportRecord report) {
+        if (report == null) return "";
+        if (report.reporterIdRaw != null && !report.reporterIdRaw.isEmpty()) return report.reporterIdRaw;
+        if (report.reporterIdNorm != null && !report.reporterIdNorm.isEmpty()) return report.reporterIdNorm;
+        return report.reporterId;
     }
 
-    private User resolveTargetUser(String avatarIdOrName, String avatarNameFallback) {
+    private String preferredReportedId(InMemoryStore.ReportRecord report) {
+        if (report == null) return "";
+        if (report.reportedIdRaw != null && !report.reportedIdRaw.isEmpty()) return report.reportedIdRaw;
+        if (report.reportedIdNorm != null && !report.reportedIdNorm.isEmpty()) return report.reportedIdNorm;
+        return report.reportedId;
+    }
+
+    private boolean matchesNormalized(String rawInput, String candidate, String normalizedInput) {
+        if (candidate == null || rawInput == null) return false;
+        String normalizedCandidate = HandlerUtils.normalizeAvatarId(candidate);
+        if (normalizedInput != null && normalizedInput.equals(normalizedCandidate)) return true;
+        return rawInput.equals(candidate);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private boolean isModerationAction(String action) {
+        if (action == null) return false;
+        return "warn".equals(action)
+                || "kick".equals(action)
+                || "ban".equals(action)
+                || "chatban".equals(action)
+                || "loginban".equals(action)
+                || "banlogin".equals(action);
+    }
+
+    private String buildTraceId(String action, long reportId) {
+        String act = action == null ? "unknown" : action;
+        return act + "-" + reportId + "-" + System.currentTimeMillis();
+    }
+
+    private ResolveResult resolveTarget(String traceId, String reportedParam, InMemoryStore.ReportRecord report) {
+        Zone z = getZone();
+        if (z == null) return new ResolveResult(null, "zone:null", 0);
+        String raw = coalesce(reportedParam, report != null ? report.reportedIdRaw : null);
+        String normalized = HandlerUtils.normalizeAvatarId(raw);
+        int candidatesChecked = 0;
+
+        String[] nameCandidates = buildNameCandidates(raw, normalized);
+        for (String candidate : nameCandidates) {
+            if (isBlank(candidate)) continue;
+            candidatesChecked++;
+            User u = z.getUserByName(candidate);
+            if (u != null) {
+                logTarget(traceId, u, "name", candidatesChecked);
+                return new ResolveResult(u, "name", candidatesChecked);
+            }
+        }
+
+        String numeric = extractNumeric(raw);
+        for (User cand : z.getUserList()) {
+            if (cand == null) continue;
+            candidatesChecked++;
+            String userName = cand.getName();
+            if (matchesNormalized(raw, userName, normalized)) {
+                logTarget(traceId, cand, "scan:name", candidatesChecked);
+                return new ResolveResult(cand, "scan:name", candidatesChecked);
+            }
+            if (!isBlank(numeric) && matchesNormalized(numeric, userName, HandlerUtils.normalizeAvatarId(numeric))) {
+                logTarget(traceId, cand, "scan:name:numeric", candidatesChecked);
+                return new ResolveResult(cand, "scan:name:numeric", candidatesChecked);
+            }
+            String avatarIdVar = readUserVarAsString(cand, "avatarID", "avatarId");
+            if (matchesNormalized(raw, avatarIdVar, normalized)) {
+                logTarget(traceId, cand, "var:avatarID", candidatesChecked);
+                return new ResolveResult(cand, "var:avatarID", candidatesChecked);
+            }
+            String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
+            if (matchesNormalized(raw, playerIdVar, normalized)) {
+                logTarget(traceId, cand, "var:playerID", candidatesChecked);
+                return new ResolveResult(cand, "var:playerID", candidatesChecked);
+            }
+            String avatarNameVar = readUserVarAsString(cand, "avatarName");
+            if (matchesNormalized(raw, avatarNameVar, normalized)) {
+                logTarget(traceId, cand, "var:avatarName", candidatesChecked);
+                return new ResolveResult(cand, "var:avatarName", candidatesChecked);
+            }
+        }
+
+        trace("[MOD_TGT] trace=" + traceId + " found=false matchMode=not-found targetName=null targetVars={} candidates=" + candidatesChecked);
+        return new ResolveResult(null, "not-found", candidatesChecked);
+    }
+
+    private String[] buildNameCandidates(String raw, String normalized) {
+        String guestNumeric = extractNumeric(raw);
+        String guestName = isBlank(guestNumeric) ? "" : "Guest#" + guestNumeric;
+        String guestLower = isBlank(guestNumeric) ? "" : "guest#" + guestNumeric;
+        return new String[]{
+                raw,
+                normalized,
+                guestName,
+                guestLower,
+                raw != null ? raw.toLowerCase() : ""
+        };
+    }
+
+    private String extractNumeric(String value) {
+        if (isBlank(value)) return "";
+        String trimmed = value.trim();
+        if (trimmed.matches("\\d+")) return trimmed;
+        String lower = trimmed.toLowerCase();
+        if (lower.startsWith("guest#")) {
+            return lower.substring("guest#".length()).trim();
+        }
+        return "";
+    }
+
+    private String coalesce(String primary, String fallback) {
+        if (!isBlank(primary)) return primary;
+        return fallback == null ? "" : fallback;
+    }
+
+    private static final class ResolveResult {
+        private final User user;
+        private final String matchedBy;
+        private final int candidatesChecked;
+
+        private ResolveResult(User user, String matchedBy, int candidatesChecked) {
+            this.user = user;
+            this.matchedBy = matchedBy;
+            this.candidatesChecked = candidatesChecked;
+        }
+    }
+
+    private String collectUserVarKeys(User user) {
+        if (user == null) {
+            return "[]";
+        }
+        java.util.List<String> keys = new java.util.ArrayList<>();
         try {
-            Zone z = getZone();
-            if (z == null) return null;
-            if (avatarIdOrName != null && !avatarIdOrName.trim().isEmpty()) {
-                User u = z.getUserByName(avatarIdOrName);
-                if (u != null) return u;
-                for (User cand : z.getUserList()) {
-                    try {
-                        if (cand == null) continue;
-                        if (avatarIdOrName.equals(readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"))) return cand;
-                        String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (avatarIdOrName.equals(playerIdVar)) return cand;
-                        Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && avatarIdOrName.equals(playerIdProp.toString())) return cand;
-                    } catch (Exception ignored) {}
+            for (UserVariable var : user.getVariables()) {
+                if (var != null) {
+                    keys.add(var.getName());
                 }
             }
-            if (avatarNameFallback != null && !avatarNameFallback.trim().isEmpty()) {
-                User u2 = z.getUserByName(avatarNameFallback);
-                if (u2 != null) return u2;
-                for (User cand : z.getUserList()) {
-                    try {
-                        if (cand == null) continue;
-                        if (avatarNameFallback.equals(readUserVarAsString(cand, "avatarName", "avatarID", "avatarId"))) return cand;
-                        String playerIdVar = readUserVarAsString(cand, "playerID", "playerId");
-                        if (avatarNameFallback.equals(playerIdVar)) return cand;
-                        Object playerIdProp = cand.getProperty("playerID");
-                        if (playerIdProp != null && avatarNameFallback.equals(playerIdProp.toString())) return cand;
-                    } catch (Exception ignored) {}
-                }
-            }
-        } catch (Exception ignored) {}
-        return null;
+        } catch (Exception ignored) {
+            return "[]";
+        }
+        return keys.toString();
+    }
+
+    private void logTarget(String traceId, User user, String matchMode, int candidatesChecked) {
+        String name = user != null ? user.getName() : "null";
+        String avatarId = readUserVarAsString(user, "avatarID", "avatarId");
+        String avatarName = readUserVarAsString(user, "avatarName");
+        String playerId = readUserVarAsString(user, "playerID", "playerId");
+        String roles = readUserVarAsString(user, "roles");
+        trace("[MOD_TGT] trace=" + traceId
+                + " found=" + (user != null)
+                + " matchMode=" + matchMode
+                + " targetName=" + name
+                + " targetVars={avatarID:" + avatarId + ",avatarName:" + avatarName + ",playerID:" + playerId + ",roles:" + roles + "}"
+                + " candidates=" + candidatesChecked);
     }
 
     private static String readStringAny(ISFSObject obj, String[] keys, String def) {
@@ -221,5 +512,15 @@ public class ComplaintActionHandler extends OsBaseHandler {
             }
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private static Integer readOptionalInt(ISFSObject obj, String key) {
+        try {
+            if (obj != null && obj.containsKey(key)) {
+                try { return obj.getInt(key); } catch (Exception ignored) {}
+                try { Double d = obj.getDouble(key); return d == null ? null : d.intValue(); } catch (Exception ignored2) {}
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

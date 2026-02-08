@@ -33,6 +33,8 @@ public class InMemoryStore {
     private final Map<String, List<BanRecord>> bansByIp = new ConcurrentHashMap<>();
     private final Map<Long, ComplaintRecord> complaintsById = new ConcurrentHashMap<>();
     private final List<Long> complaintOrder = Collections.synchronizedList(new ArrayList<Long>());
+    private final Map<Long, ReportRecord> reportsById = new ConcurrentHashMap<>();
+    private final List<Long> reportOrder = Collections.synchronizedList(new ArrayList<Long>());
     private final Map<Long, GuideRequestRecord> guideRequestsById = new ConcurrentHashMap<>();
     private final List<Long> guideRequestOrder = Collections.synchronizedList(new ArrayList<Long>());
 // ========== SMILEY SYSTEM ==========
@@ -1300,6 +1302,11 @@ public class InMemoryStore {
         data.incrementBanCount();
     }
 
+    public int getBanCount(String avatarId) {
+        ProfileData data = getProfileByAvatarId(avatarId);
+        return data == null ? 0 : data.getBanCount();
+    }
+
     public SFSArray buildBuddyListArray(String userId) {
         SFSArray list = new SFSArray();
         if (isBlank(userId)) {
@@ -1536,6 +1543,43 @@ public static class ComplaintRecord {
     }
 }
 
+public static class ReportRecord {
+    public final long reportId;
+    public final String reporterId;
+    public final String reporterIdRaw;
+    public final String reporterIdNorm;
+    public final String reportedId;
+    public final String reportedIdRaw;
+    public final String reportedIdNorm;
+    public final String message;
+    public final String comment;
+    public final long createdAtEpochSec;
+    public volatile String status; // OPEN, RESOLVED
+    public volatile int isPervert;
+    public volatile int isAbuse;
+    public volatile int banCount;
+    public volatile int nextBanMin;
+
+    public ReportRecord(long reportId, String reporterIdRaw, String reporterIdNorm, String reportedIdRaw, String reportedIdNorm,
+                        String message, String comment, int isPervert, int banCount, int nextBanMin, long createdAtEpochSec) {
+        this.reportId = reportId;
+        this.reporterIdRaw = reporterIdRaw == null ? "" : reporterIdRaw;
+        this.reporterIdNorm = reporterIdNorm == null ? "" : reporterIdNorm;
+        this.reportedIdRaw = reportedIdRaw == null ? "" : reportedIdRaw;
+        this.reportedIdNorm = reportedIdNorm == null ? "" : reportedIdNorm;
+        this.reporterId = this.reporterIdNorm.isEmpty() ? this.reporterIdRaw : this.reporterIdNorm;
+        this.reportedId = this.reportedIdNorm.isEmpty() ? this.reportedIdRaw : this.reportedIdNorm;
+        this.message = message == null ? "" : message;
+        this.comment = comment == null ? "" : comment;
+        this.isPervert = Math.max(0, isPervert);
+        this.isAbuse = 0;
+        this.banCount = Math.max(0, banCount);
+        this.nextBanMin = Math.max(0, nextBanMin);
+        this.createdAtEpochSec = createdAtEpochSec;
+        this.status = "OPEN";
+    }
+}
+
 public static class GuideRequestRecord {
     public final long id;
     public final String requesterId;
@@ -1604,6 +1648,44 @@ public ComplaintRecord getComplaint(long id) {
 
 public boolean resolveComplaint(long id) {
     ComplaintRecord r = complaintsById.get(id);
+    if (r == null) return false;
+    r.status = "RESOLVED";
+    return true;
+}
+
+// ========== REPORTS API ==========
+public long addReport(String reporterIdRaw, String reporterIdNorm, String reportedIdRaw, String reportedIdNorm,
+                      String message, String comment,
+                      int isPervert, int banCount, int nextBanMin) {
+    long id = System.currentTimeMillis();
+    long now = System.currentTimeMillis() / 1000;
+    ReportRecord rec = new ReportRecord(id, reporterIdRaw, reporterIdNorm, reportedIdRaw, reportedIdNorm,
+            message, comment, isPervert, banCount, nextBanMin, now);
+    reportsById.put(id, rec);
+    reportOrder.add(0, id);
+    return id;
+}
+
+public List<ReportRecord> listReports(String statusOrNull, int limit) {
+    List<ReportRecord> out = new ArrayList<>();
+    synchronized (reportOrder) {
+        for (Long id : reportOrder) {
+            ReportRecord r = reportsById.get(id);
+            if (r == null) continue;
+            if (statusOrNull != null && !statusOrNull.equalsIgnoreCase(r.status)) continue;
+            out.add(r);
+            if (limit > 0 && out.size() >= limit) break;
+        }
+    }
+    return out;
+}
+
+public ReportRecord getReport(long id) {
+    return reportsById.get(id);
+}
+
+public boolean resolveReport(long id) {
+    ReportRecord r = reportsById.get(id);
     if (r == null) return false;
     r.status = "RESOLVED";
     return true;

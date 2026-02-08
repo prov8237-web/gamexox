@@ -62,8 +62,12 @@ public class BanUserHandler extends OsBaseHandler {
 
         // notify target (client BanModel listens "banned")
         if (rec != null) {
-            SFSObject payload = rec.toSFSObject(System.currentTimeMillis() / 1000);
+            long now = System.currentTimeMillis() / 1000;
+            String traceId = "banUser-" + target.getName() + "-" + System.currentTimeMillis();
+            SFSObject payload = HandlerUtils.buildBannedPayload(banType, rec, now, traceId);
+            trace(buildSendLog("banned", traceId, target, payload));
             getParentExtension().send("banned", payload, target);
+            trace("[MOD_BAN_SEND] trace=" + traceId + " type=" + banType + " timeLeft=" + payload.getInt("timeLeft"));
 
             // if LOGIN ban: disconnect immediately
             if ("LOGIN".equalsIgnoreCase(banType)) {
@@ -124,5 +128,38 @@ public class BanUserHandler extends OsBaseHandler {
             if (obj != null && obj.containsKey(key)) return obj.getBool(key);
         } catch (Exception ignored) {}
         return def;
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId", "avatarName") : "null";
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }

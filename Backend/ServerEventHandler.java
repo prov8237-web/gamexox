@@ -72,19 +72,47 @@ public class ServerEventHandler extends BaseServerEventHandler {
         try {
             String ip = user.getSession().getAddress();
             if (store.isIpBanned(ip, "LOGIN")) {
-                // send banned event
-                SFSObject banned = new SFSObject();
+                InMemoryStore.BanRecord match = null;
                 long now = System.currentTimeMillis() / 1000;
                 for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
                     if ("LOGIN".equalsIgnoreCase(br.type)) {
-                        banned = br.toSFSObject(now);
+                        match = br;
                         break;
                     }
                 }
+                String traceId = "enforce-login-" + user.getName() + "-" + System.currentTimeMillis();
+                SFSObject banned = HandlerUtils.buildBannedPayload("LOGIN", match, now, traceId);
+                trace(buildSendLog("banned", traceId, user, banned));
                 ext.send("banned", banned, user);
+                trace("[MOD_BAN_SEND] trace=" + traceId + " type=LOGIN timeLeft=" + banned.getInt("timeLeft"));
                 // disconnect
                 getApi().disconnectUser(user);
-                trace("🚫 Disconnected user due to LOGIN ban: " + user.getName());
+                trace("[MOD_BAN_ENFORCE] trace=" + traceId + " user=" + user.getName() + " type=LOGIN");
+                return;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
+        // Moderation: CHAT ban check (enforce by disconnecting on login)
+        try {
+            String ip = user.getSession().getAddress();
+            if (store.isIpBanned(ip, "CHAT")) {
+                InMemoryStore.BanRecord match = null;
+                long now = System.currentTimeMillis() / 1000;
+                for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
+                    if ("CHAT".equalsIgnoreCase(br.type)) {
+                        match = br;
+                        break;
+                    }
+                }
+                String traceId = "enforce-chat-" + user.getName() + "-" + System.currentTimeMillis();
+                SFSObject banned = HandlerUtils.buildBannedPayload("CHAT", match, now, traceId);
+                trace(buildSendLog("banned", traceId, user, banned));
+                ext.send("banned", banned, user);
+                trace("[MOD_BAN_SEND] trace=" + traceId + " type=CHAT timeLeft=" + banned.getInt("timeLeft"));
+                getApi().disconnectUser(user);
+                trace("[MOD_BAN_ENFORCE] trace=" + traceId + " user=" + user.getName() + " type=CHAT");
                 return;
             }
         } catch (Exception e) {
@@ -274,15 +302,19 @@ public class ServerEventHandler extends BaseServerEventHandler {
                 InMemoryStore store = ext.getStore();
                 String ip = user.getSession().getAddress();
                 if (store != null && store.isIpBanned(ip, "CHAT")) {
-                    SFSObject banned = new SFSObject();
                     long now = System.currentTimeMillis() / 1000;
+                    InMemoryStore.BanRecord match = null;
                     for (InMemoryStore.BanRecord br : store.getActiveBansForIp(ip)) {
                         if ("CHAT".equalsIgnoreCase(br.type)) {
-                            banned = br.toSFSObject(now);
+                            match = br;
                             break;
                         }
                     }
+                    String traceId = "enforce-chat-msg-" + user.getName() + "-" + System.currentTimeMillis();
+                    SFSObject banned = HandlerUtils.buildBannedPayload("CHAT", match, now, traceId);
+                    trace(buildSendLog("banned", traceId, user, banned));
                     ext.send("banned", banned, user);
+                    trace("[MOD_BAN_SEND] trace=" + traceId + " type=CHAT timeLeft=" + banned.getInt("timeLeft"));
                     trace("🚫 Blocked public chat message due to CHAT ban: " + user.getName());
                     return;
                 }
@@ -572,5 +604,41 @@ public class ServerEventHandler extends BaseServerEventHandler {
             return "[]";
         }
         return keys.toString();
+    }
+
+    private String buildSendLog(String cmd, String traceId, User target, SFSObject payload) {
+        String targetName = target != null ? target.getName() : "null";
+        String targetId = target != null ? readUserVarAsString(target, "avatarID", "avatarId") : "null";
+        if (targetId == null || targetId.trim().isEmpty()) {
+            targetId = targetName;
+        }
+        return "[MOD_SEND] cmd=" + cmd
+                + " trace=" + traceId
+                + " to=" + targetName
+                + " avatarID=" + targetId
+                + " payload=" + formatPayloadTypes(payload);
+    }
+
+    private String formatPayloadTypes(SFSObject payload) {
+        if (payload == null) return "{}";
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (String key : payload.getKeys()) {
+            if (!first) sb.append(", ");
+            first = false;
+            String type = "unknown";
+            try {
+                if (payload.getUtfString(key) != null) {
+                    type = "str";
+                }
+            } catch (Exception ignored) {}
+            try {
+                payload.getInt(key);
+                type = "int";
+            } catch (Exception ignored) {}
+            sb.append(key).append("(").append(type).append(")=").append(String.valueOf(payload.get(key)));
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }

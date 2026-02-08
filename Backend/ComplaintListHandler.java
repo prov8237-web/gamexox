@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Knights/Security panel list.
- * Returns { list: [ {id, reporterId, reporterName, targetId, targetName, room, text, reason, time, status}, ... ] }
+ * Returns { complaints: [ {id, message, comment, reporterAvatarID, reportedAvatarID, isPervert, banCount, nextBanMin}, ... ] }
  */
 public class ComplaintListHandler extends OsBaseHandler {
 
@@ -28,19 +28,13 @@ public class ComplaintListHandler extends OsBaseHandler {
         String status = readString(data, "status", "OPEN");
         int limit = readInt(data, "limit", 50);
 
-        List<InMemoryStore.ComplaintRecord> list = store.listComplaints(status, limit);
-        ISFSArray arr = new SFSArray();
-        for (InMemoryStore.ComplaintRecord r : list) {
-            arr.addSFSObject(r.toSFSObject());
-        }
+        trace("[REPORT_INBOX_FETCH] requester=" + user.getName() + " status=" + status + " limit=" + limit);
 
-        SFSObject res = new SFSObject();
-        res.putBool("ok", true);
-        res.putSFSArray("list", arr);
+        SFSObject res = buildComplaintPayload(store, status, limit);
         sendResponseWithRid("complaintlist", res, user, rid);
     }
 
-    private boolean isSecurityUser(User u, InMemoryStore store) {
+    public static boolean isSecurityUser(User u, InMemoryStore store) {
         try {
             InMemoryStore.UserState st = store.getOrCreateUser(u);
             String roles = st.getRoles();
@@ -50,6 +44,63 @@ public class ComplaintListHandler extends OsBaseHandler {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static SFSObject buildComplaintPayload(InMemoryStore store, String status, int limit) {
+        List<InMemoryStore.ReportRecord> list = store.listReports(status, limit);
+        ISFSArray arr = new SFSArray();
+        for (InMemoryStore.ReportRecord r : list) {
+            String reporterOut = chooseNonZero(r.reporterIdRaw, r.reporterIdNorm, r.reporterId);
+            String reportedOut = chooseNonZero(r.reportedIdRaw, r.reportedIdNorm, r.reportedId);
+            if (isZero(reporterOut) || isZero(reportedOut)) {
+                System.out.println("[RPT_WARN_ZERO] reportId=" + r.reportId
+                        + " reporter=" + reporterOut
+                        + " reported=" + reportedOut);
+            }
+            SFSObject item = new SFSObject();
+            item.putLong("id", r.reportId);
+            item.putUtfString("message", r.message == null ? "" : r.message);
+            item.putUtfString("comment", r.comment == null ? "" : r.comment);
+            item.putUtfString("reporterAvatarID", reporterOut == null ? "" : reporterOut);
+            item.putUtfString("reportedAvatarID", reportedOut == null ? "" : reportedOut);
+            item.putInt("isPervert", r.isPervert);
+            item.putInt("banCount", r.banCount);
+            item.putInt("nextBanMin", r.nextBanMin);
+            arr.addSFSObject(item);
+        }
+
+        SFSObject res = new SFSObject();
+        res.putBool("ok", true);
+        res.putSFSArray("complaints", arr);
+        if (!list.isEmpty()) {
+            InMemoryStore.ReportRecord first = list.get(0);
+            String reporterOut = first.reporterIdRaw != null && !first.reporterIdRaw.isEmpty() ? first.reporterIdRaw : first.reporterId;
+            String reportedOut = first.reportedIdRaw != null && !first.reportedIdRaw.isEmpty() ? first.reportedIdRaw : first.reportedId;
+            System.out.println("[COMPLAINTLIST_BUILD] count=" + list.size()
+                    + " first.reportedId=" + reportedOut
+                    + " reporterId=" + reporterOut
+                    + " message=" + first.message
+                    + " comment=" + first.comment);
+        } else {
+            System.out.println("[COMPLAINTLIST_BUILD] count=0");
+        }
+        return res;
+    }
+
+    private static String chooseNonZero(String... values) {
+        if (values == null) return "";
+        for (String v : values) {
+            if (v == null) continue;
+            String trimmed = v.trim();
+            if (trimmed.isEmpty()) continue;
+            if ("0".equals(trimmed)) continue;
+            return trimmed;
+        }
+        return "";
+    }
+
+    private static boolean isZero(String value) {
+        return value == null || value.trim().isEmpty() || "0".equals(value.trim());
     }
 
     private static String readString(ISFSObject obj, String key, String def) {

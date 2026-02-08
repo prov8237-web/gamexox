@@ -301,8 +301,14 @@ public final class ProtocolValidator {
         schemas.put("ingamereport", ResponseSchema.builder()
                 .require("ok", FieldType.BOOL)
                 .build());
+        schemas.put("baninfo", ResponseSchema.builder()
+                .require("banCount", FieldType.INT)
+                .require("totalMins", FieldType.INT)
+                .require("nextBanMin", FieldType.INT)
+                .require("nextRequest", FieldType.INT)
+                .build());
         schemas.put("report", ResponseSchema.builder()
-                .require("ok", FieldType.BOOL)
+                .require("nextRequest", FieldType.INT)
                 .build());
         // === End added ===
 

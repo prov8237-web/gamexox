@@ -90,7 +90,13 @@ public final class RequestValidator {
                 .build());
         schemas.put("changesettings", RequestSchema.builder().build());
         schemas.put("nickChange", RequestSchema.builder().build());
-        schemas.put("report", RequestSchema.builder().build());
+        schemas.put("baninfo", RequestSchema.builder().require("avatarID", FieldType.UTF_STRING).build());
+        schemas.put("report", RequestSchema.builder()
+                .require("reportedAvatarID", FieldType.UTF_STRING)
+                .require("message", FieldType.UTF_STRING)
+                .require("comment", FieldType.UTF_STRING)
+                .require("isPervert", FieldType.INT)
+                .build());
         return Collections.unmodifiableMap(schemas);
     }
 
