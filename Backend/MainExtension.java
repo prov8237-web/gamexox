@@ -163,6 +163,8 @@ public class MainExtension extends SFSExtension {
         registerHandler("privatechatdeletegroup", GenericRequestHandler.class);
         registerHandler("flatsettings", GenericRequestHandler.class);
         registerHandler("flatpassword", GenericRequestHandler.class);
+        registerHandler("shopproductlist", GenericRequestHandler.class);
+        registerHandler("pubContentList", GenericRequestHandler.class);
         registerHandler("debugcommand", GenericRequestHandler.class);
         registerHandler("roommessage", GenericRequestHandler.class);
         registerHandler("orderlist", GenericRequestHandler.class);
@@ -241,16 +243,7 @@ public class MainExtension extends SFSExtension {
         if (candidateBots.isEmpty()) {
             return;
         }
-        List<String> validBots = new ArrayList<>();
-        for (String botKey : candidateBots) {
-            if (BotMessageCatalog.resolve(botKey) != null) {
-                validBots.add(botKey);
-            }
-        }
-        if (validBots.isEmpty()) {
-            return;
-        }
-        roomChatterBots.put(roomName, validBots);
+        roomChatterBots.put(roomName, candidateBots);
         roomChatterTasks.computeIfAbsent(roomName, key -> scheduler.scheduleAtFixedRate(
             () -> sendRoomChatter(key), 10, 10, TimeUnit.SECONDS));
     }
@@ -291,19 +284,25 @@ public class MainExtension extends SFSExtension {
 
     private SFSObject buildBotMessagePayload(String botKey, String message) {
         BotMessageCatalog.BotDefinition definition = BotMessageCatalog.resolve(botKey);
-        if (definition == null) {
-            return null;
-        }
         SFSObject botData = new SFSObject();
-        botData.putUtfString("botKey", definition.getKey());
+        botData.putUtfString("botKey", definition == null ? botKey : definition.getKey());
         botData.putUtfString("message", message);
         botData.putInt("duration", 20);
         botData.putInt("version", 1);
-        SFSArray colors = definition.buildColors();
+        SFSArray colors = definition == null ? buildDefaultBotColors() : definition.buildColors();
         botData.putSFSArray("colors", colors);
         SFSObject property = new SFSObject();
         property.putUtfString("cn", "SimpleBotMessageProperty");
         botData.putSFSObject("property", property);
         return botData;
+    }
+
+    private SFSArray buildDefaultBotColors() {
+        SFSArray colors = new SFSArray();
+        colors.addUtfString("43A047");
+        colors.addUtfString("FFFFFF");
+        colors.addUtfString("1B5E20");
+        colors.addUtfString("2E7D32");
+        return colors;
     }
 }

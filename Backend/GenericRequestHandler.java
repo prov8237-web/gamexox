@@ -118,6 +118,12 @@ public class GenericRequestHandler extends OsBaseHandler {
             case "buddylocate":
                 reply(user, command, buildBuddyLocateResponse(state));
                 return;
+            case "shopproductlist":
+                reply(user, command, buildShopProductListResponse());
+                return;
+            case "pubContentList":
+                reply(user, command, buildPubContentListResponse());
+                return;
             default:
                 reply(user, command, new SFSObject());
         }
@@ -191,6 +197,28 @@ public class GenericRequestHandler extends OsBaseHandler {
     private ISFSObject buildOrderListResponse(InMemoryStore.UserState state) {
         SFSObject res = new SFSObject();
         res.putSFSArray("orders", state.getOrders());
+        return res;
+    }
+
+    private ISFSObject buildShopProductListResponse() {
+        SFSObject res = new SFSObject();
+        res.putSFSArray("products", new SFSArray());
+        res.putInt("nextRequest", 1000);
+        return res;
+    }
+
+    private ISFSObject buildPubContentListResponse() {
+        SFSObject res = new SFSObject();
+        SFSArray list = new SFSArray();
+        SFSObject item = new SFSObject();
+        item.putUtfString("metaType", "JOURNAL");
+        item.putUtfString("title", "MenaC");
+        item.putUtfString("image", "https://cdn.discordapp.com/attachments/1345899137211699321/1470030551934308498/menaC.png");
+        item.putUtfString("imageUrl", "https://cdn.discordapp.com/attachments/1345899137211699321/1470030551934308498/menaC.png");
+        item.putUtfString("thumb", "https://cdn.discordapp.com/attachments/1345899137211699321/1470030551934308498/menaC.png");
+        list.addSFSObject(item);
+        res.putSFSArray("list", list);
+        res.putInt("nextRequest", 1000);
         return res;
     }
 
