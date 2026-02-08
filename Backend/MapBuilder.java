@@ -46,8 +46,8 @@ public final class MapBuilder {
     }
 
     public static RoomBuildData buildRoomData(String roomKey) {
-        String resolvedRoomKey = roomKey == null || roomKey.isEmpty() ? DEFAULT_ROOM_KEY : roomKey;
-        RoomConfigRegistry.Resolution resolution = resolveRoomConfig(resolvedRoomKey);
+        String normalizedRoomKey = RoomConfigRegistry.normalizeRoomKey(roomKey);
+        RoomConfigRegistry.Resolution resolution = resolveRoomConfig(normalizedRoomKey);
         RoomConfig config = resolution.getConfig();
         if ("fallback".equals(resolution.getSource()) && USE_LEGACY_FALLBACK) {
             RoomBuildData legacy = new RoomBuildData(
@@ -57,27 +57,27 @@ public final class MapBuilder {
                 buildLegacySceneItems(),
                 "legacy"
             );
-            logRoomBuild(resolvedRoomKey, legacy.getFurnitureCount(), legacy.getBotsCount(), legacy.getDoorsCount(),
+            logRoomBuild(normalizedRoomKey, legacy.getFurnitureCount(), legacy.getBotsCount(), legacy.getDoorsCount(),
                 legacy.getSource(), "legacy_fallback", "");
             return legacy;
         }
 
         DoorBuildResult doorResult = buildDoorsResult(config);
         RoomBuildData data = new RoomBuildData(
-            buildMapBase64(resolvedRoomKey),
+            buildMapBase64(normalizedRoomKey),
             doorResult.getDoorsJson(),
             buildBotsJson(config),
             buildSceneItems(config),
             resolution.getSource()
         );
         String warning = "fallback".equals(resolution.getSource()) ? "missing_config" : null;
-        logRoomBuild(resolvedRoomKey, data.getFurnitureCount(), data.getBotsCount(), doorResult.getDoorCount(),
+        logRoomBuild(normalizedRoomKey, data.getFurnitureCount(), data.getBotsCount(), doorResult.getDoorCount(),
             resolution.getSource(), warning, doorResult.getDoorIdsCsv());
-        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey) && doorResult.isLegacyDoor5Ok()) {
-            System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
+        if (DEFAULT_ROOM_KEY.equals(normalizedRoomKey) && doorResult.isLegacyDoor5Ok()) {
+            System.out.println("[DOOR_LEGACY_OK] roomKey=" + normalizedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
         }
         if (!doorResult.getDoorIdsCsv().isEmpty()) {
-            System.out.println("[DOORS_LIST] roomKey=" + resolvedRoomKey
+            System.out.println("[DOORS_LIST] roomKey=" + normalizedRoomKey
                 + " keys=" + doorResult.getDoorIdsCsv());
         }
         return data;

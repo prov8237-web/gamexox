@@ -26,6 +26,10 @@ Street01: Added 9 doors (`d1`..`d9`) mapping to `street02`..`street10`; coords a
 - `d8` → `street09`
 - `d9` → `street10`
 
+## Room Key Normalization & Aliases
+- Room keys are normalized by trimming, lowercasing, and stripping instance suffixes (`#1`, `_2`, `-3`) before config lookup.
+- Known aliases map runtime names to canonical keys (e.g., `1450281337501-10.5` → `street02`, `st01.1` → `street01`).
+
 ## Street05 Doors
 Street05: Added 9 doors (`d1`..`d9`) mapping to `street01`..`street10`; coords are placeholders to be refined.
 

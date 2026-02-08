@@ -14,8 +14,11 @@ public final class RoomConfigRegistry {
     private static final String DEFAULT_DOOR_PROPERTY = "FlatExitProperty";
 
     private static final Map<String, RoomConfig> CONFIGS = new HashMap<>();
+    private static final Map<String, String> ALIASES = new HashMap<>();
 
     static {
+        registerAlias("1450281337501-10.5", "street02");
+        registerAlias("st01.1", "street01");
         register(buildStreet01());
         register(buildStreet05());
         register(buildStreet02());
@@ -24,15 +27,40 @@ public final class RoomConfigRegistry {
     private RoomConfigRegistry() {}
 
     public static Resolution resolve(String roomKey) {
-        String resolved = roomKey == null ? "" : roomKey.trim();
-        if (resolved.isEmpty()) {
-            resolved = MapBuilder.DEFAULT_ROOM_KEY;
+        String requested = roomKey == null ? "" : roomKey.trim();
+        String normalized = normalizeRoomKey(requested);
+        boolean found = normalized != null && CONFIGS.containsKey(normalized);
+        System.out.println("[ROOM_CONFIG_RESOLVE] requestedKey=" + requested
+            + " normalizedKey=" + normalized
+            + " found=" + found
+            + " source=" + (found ? "config" : "fallback"));
+        if (found) {
+            return new Resolution(CONFIGS.get(normalized), "config");
         }
-        RoomConfig config = CONFIGS.get(resolved.toLowerCase(Locale.ROOT));
-        if (config != null) {
-            return new Resolution(config, "config");
+        String fallbackKey = normalized == null ? MapBuilder.DEFAULT_ROOM_KEY : normalized;
+        return new Resolution(RoomConfig.empty(fallbackKey, DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN), "fallback");
+    }
+
+    public static String normalizeRoomKey(String rawRoomName) {
+        if (rawRoomName == null) {
+            return MapBuilder.DEFAULT_ROOM_KEY;
         }
-        return new Resolution(RoomConfig.empty(resolved, DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN), "fallback");
+        String trimmed = rawRoomName.trim();
+        if (trimmed.isEmpty()) {
+            return MapBuilder.DEFAULT_ROOM_KEY;
+        }
+        String alias = ALIASES.get(trimmed);
+        if (alias != null) {
+            System.out.println("[ROOM_CONFIG_ALIAS] requestedKey=" + trimmed + " aliasTo=" + alias);
+            trimmed = alias;
+        }
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+        int hashIndex = normalized.indexOf('#');
+        if (hashIndex > 0) {
+            normalized = normalized.substring(0, hashIndex);
+        }
+        normalized = normalized.replaceAll("([_-])\\d+$", "");
+        return normalized;
     }
 
     private static void register(RoomConfig config) {
@@ -40,6 +68,13 @@ public final class RoomConfigRegistry {
             return;
         }
         CONFIGS.put(config.getRoomKey().toLowerCase(Locale.ROOT), config);
+    }
+
+    private static void registerAlias(String rawKey, String canonicalKey) {
+        if (rawKey == null || canonicalKey == null) {
+            return;
+        }
+        ALIASES.put(rawKey, canonicalKey);
     }
 
     private static RoomConfig buildStreet01() {
@@ -134,8 +169,8 @@ public final class RoomConfigRegistry {
         bots.add(bot("street02Guide", "Guide", 14, 16, 1, 1));
 
         List<DoorSpawn> doors = new ArrayList<>();
-        doors.add(new DoorSpawn(MapBuilder.DEFAULT_DOOR_KEY, 10, 8, 2, DEFAULT_DOOR_PROPERTY,
-            "street01", MapBuilder.DEFAULT_DOOR_KEY));
+        doors.add(new DoorSpawn("d5", 10, 8, 2, DEFAULT_DOOR_PROPERTY,
+            "street01", "spawn_default"));
 
         return new RoomConfig("street02", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }

@@ -16,10 +16,11 @@ public class UseDoorHandler extends OsBaseHandler {
             Room lastRoom = user.getLastJoinedRoom();
             fromRoom = lastRoom != null ? lastRoom.getName() : MapBuilder.DEFAULT_ROOM_KEY;
         }
+        String normalizedFromRoom = RoomConfigRegistry.normalizeRoomKey(fromRoom);
         String targetRoom = data.containsKey("roomKey") ? data.getUtfString("roomKey") : MapBuilder.DEFAULT_ROOM_KEY;
         boolean routed = false;
         String reason = "requested";
-        RoomConfigRegistry.Resolution resolution = RoomConfigRegistry.resolve(fromRoom);
+        RoomConfigRegistry.Resolution resolution = RoomConfigRegistry.resolve(normalizedFromRoom);
         DoorSpawn matchedDoor = null;
         for (DoorSpawn door : resolution.getConfig().getDoors()) {
             if (door != null && doorKey.equals(door.getKey())) {
@@ -52,7 +53,7 @@ public class UseDoorHandler extends OsBaseHandler {
                 trace("[USEDOOR] Error: " + e.getMessage());
             }
         }
-        trace("[ROOM_DOOR] from=" + fromRoom + " doorKey=" + doorKey + " to=" + targetRoom
+        trace("[ROOM_DOOR] from=" + normalizedFromRoom + " doorKey=" + doorKey + " to=" + targetRoom
             + " ok=" + (routed && targetRoomObj != null) + " reason="
             + (routed ? (targetRoomObj != null ? "join_ok" : "room_not_found") : reason));
 

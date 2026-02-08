@@ -1,6 +1,6 @@
-# Room Transition Fix Plan (No Code Yet)
+# Room Transition Fix Plan (Implemented)
 
-## Step-by-step Plan
+## Implemented Steps
 1. **Room key normalization in `RoomConfigRegistry.resolve`**
    - Strip common instance suffixes (e.g., `#1`, `_2`, `-3`) and whitespace.
    - Add alias mapping (e.g., `street05#1` → `street05`).
@@ -30,3 +30,8 @@
      - `[DOORS_LIST] roomKey=... keys=...`
    - These logs will support verifying that doors are built and injected per room.
 
+## Implementation Notes
+- Normalization and alias mapping are now handled by `RoomConfigRegistry.normalizeRoomKey`, with alias logs emitted on use and resolve logs emitted on every lookup. (RoomConfigRegistry.java:18-72)
+- `MapBuilder.buildRoomData` uses the normalized room key for config selection and logging, ensuring consistent `ROOM_BUILD`/`DOORS_LIST` across rooms. (MapBuilder.java:48-83)
+- `UseDoorHandler` resolves routing based on the normalized room key and logs routing using that normalized value. (UseDoorHandler.java:14-57)
+- `street02` includes a return door (`d5`) back to `street01`. (RoomConfigRegistry.java:127-140)
