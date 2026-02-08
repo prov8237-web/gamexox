@@ -19,25 +19,23 @@ public class UseDoorHandler extends OsBaseHandler {
         String targetRoom = data.containsKey("roomKey") ? data.getUtfString("roomKey") : MapBuilder.DEFAULT_ROOM_KEY;
         boolean routed = false;
         String reason = "requested";
-        if (MapBuilder.DEFAULT_ROOM_KEY.equalsIgnoreCase(fromRoom)) {
-            RoomConfigRegistry.Resolution resolution = RoomConfigRegistry.resolve(fromRoom);
-            DoorSpawn matchedDoor = null;
-            for (DoorSpawn door : resolution.getConfig().getDoors()) {
-                if (door != null && doorKey.equals(door.getKey())) {
-                    matchedDoor = door;
-                    break;
-                }
+        RoomConfigRegistry.Resolution resolution = RoomConfigRegistry.resolve(fromRoom);
+        DoorSpawn matchedDoor = null;
+        for (DoorSpawn door : resolution.getConfig().getDoors()) {
+            if (door != null && doorKey.equals(door.getKey())) {
+                matchedDoor = door;
+                break;
             }
-            if (matchedDoor == null) {
-                reason = "unknown_door";
-            } else if (matchedDoor.getDestinationRoomKey() == null
-                || matchedDoor.getDestinationRoomKey().trim().isEmpty()) {
-                reason = "missing_destination";
-            } else {
-                targetRoom = matchedDoor.getDestinationRoomKey();
-                routed = true;
-                reason = "route_ok";
-            }
+        }
+        if (matchedDoor == null) {
+            reason = "unknown_door";
+        } else if (matchedDoor.getDestinationRoomKey() == null
+            || matchedDoor.getDestinationRoomKey().trim().isEmpty()) {
+            reason = "missing_destination";
+        } else {
+            targetRoom = matchedDoor.getDestinationRoomKey();
+            routed = true;
+            reason = "route_ok";
         }
 
         trace("[USEDOOR] " + user.getName() + " -> " + targetRoom + " via " + doorKey);

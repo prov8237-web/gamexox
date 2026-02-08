@@ -17,6 +17,7 @@ public final class RoomConfigRegistry {
 
     static {
         register(buildStreet01());
+        register(buildStreet05());
         register(buildStreet02());
     }
 
@@ -137,6 +138,24 @@ public final class RoomConfigRegistry {
             "street01", MapBuilder.DEFAULT_DOOR_KEY));
 
         return new RoomConfig("street02", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
+    }
+
+    private static RoomConfig buildStreet05() {
+        List<FurnitureSpawn> furniture = new ArrayList<>();
+        List<BotSpawn> bots = new ArrayList<>();
+
+        List<DoorSpawn> doors = new ArrayList<>();
+        doors.add(new DoorSpawn("d1", 12, 8, 0, DEFAULT_DOOR_PROPERTY, "street01", "spawn_default"));
+        doors.add(new DoorSpawn("d2", 18, 8, 0, DEFAULT_DOOR_PROPERTY, "street02", "spawn_default"));
+        doors.add(new DoorSpawn("d3", 24, 8, 0, DEFAULT_DOOR_PROPERTY, "street03", "spawn_default"));
+        doors.add(new DoorSpawn("d4", 30, 8, 0, DEFAULT_DOOR_PROPERTY, "street04", "spawn_default"));
+        doors.add(new DoorSpawn("d5", 36, 8, 0, DEFAULT_DOOR_PROPERTY, "street06", "spawn_default"));
+        doors.add(new DoorSpawn("d6", 42, 8, 0, DEFAULT_DOOR_PROPERTY, "street07", "spawn_default"));
+        doors.add(new DoorSpawn("d7", 48, 8, 0, DEFAULT_DOOR_PROPERTY, "street08", "spawn_default"));
+        doors.add(new DoorSpawn("d8", 54, 8, 0, DEFAULT_DOOR_PROPERTY, "street09", "spawn_default"));
+        doors.add(new DoorSpawn("d9", 60, 8, 0, DEFAULT_DOOR_PROPERTY, "street10", "spawn_default"));
+
+        return new RoomConfig("street05", DEFAULT_THEME, DEFAULT_X_ORIGIN, DEFAULT_Y_ORIGIN, furniture, bots, doors);
     }
 
     private static FurnitureSpawn furniture(String type, String def, int x, int y, int z) {

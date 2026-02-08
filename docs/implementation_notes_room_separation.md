@@ -26,6 +26,20 @@ Street01: Added 9 doors (`d1`..`d9`) mapping to `street02`..`street10`; coords a
 - `d8` → `street09`
 - `d9` → `street10`
 
+## Street05 Doors
+Street05: Added 9 doors (`d1`..`d9`) mapping to `street01`..`street10`; coords are placeholders to be refined.
+
+## Street05 Door Routing
+- `d1` → `street01`
+- `d2` → `street02`
+- `d3` → `street03`
+- `d4` → `street04`
+- `d5` → `street06`
+- `d6` → `street07`
+- `d7` → `street08`
+- `d8` → `street09`
+- `d9` → `street10`
+
 ## How to Extend for `street03`
 1. Add a new `RoomConfig` in `RoomConfigRegistry.buildStreet03()` with:
    - `List<FurnitureSpawn>` items and coordinates.

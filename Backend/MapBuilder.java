@@ -73,14 +73,12 @@ public final class MapBuilder {
         String warning = "fallback".equals(resolution.getSource()) ? "missing_config" : null;
         logRoomBuild(resolvedRoomKey, data.getFurnitureCount(), data.getBotsCount(), doorResult.getDoorCount(),
             resolution.getSource(), warning, doorResult.getDoorIdsCsv());
-        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey)) {
-            if (doorResult.isLegacyDoor5Ok()) {
-                System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
-            }
-            if (!doorResult.getDoorIdsCsv().isEmpty()) {
-                System.out.println("[DOORS_LIST] roomKey=" + resolvedRoomKey
-                    + " keys=" + doorResult.getDoorIdsCsv());
-            }
+        if (DEFAULT_ROOM_KEY.equals(resolvedRoomKey) && doorResult.isLegacyDoor5Ok()) {
+            System.out.println("[DOOR_LEGACY_OK] roomKey=" + resolvedRoomKey + " doorId=" + LEGACY_DOOR5_ID);
+        }
+        if (!doorResult.getDoorIdsCsv().isEmpty()) {
+            System.out.println("[DOORS_LIST] roomKey=" + resolvedRoomKey
+                + " keys=" + doorResult.getDoorIdsCsv());
         }
         return data;
     }
