@@ -27,6 +27,16 @@ This document enumerates outbound moderation-related commands and their payload 
 
 **Evidence**: Both payload shapes are constructed and sent via `getParentExtension().send("adminMessage", payload, target)`. (`Backend/ComplaintActionHandler.java`)
 
+### Source: `InGameReportHandler`
+- **Command**: `adminMessage`
+- **Keys + types**:
+  - `title` (string, `Municipalty Message`)
+  - `message` (string, non-empty)
+  - `ts` (int, UNIX seconds)
+  - `trace` (string)
+
+**Evidence**: `InGameReportHandler` builds and sends an `adminMessage` for `notice`/`kick` commands. (`Backend/InGameReportHandler.java`)
+
 ## cmd="banned"
 
 ### Source: `ComplaintActionHandler.banTarget`

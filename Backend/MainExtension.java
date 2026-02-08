@@ -41,7 +41,7 @@ public class MainExtension extends SFSExtension {
         registerHandler("complaintaction", ComplaintActionHandler.class);
         registerHandler("baninfo", BanInfoHandler.class);
         registerHandler("prereport", PreReportHandler.class);
-        registerHandler("ingamereport", PreReportHandler.class);
+        registerHandler("ingamereport", InGameReportHandler.class);
         registerHandler("report", ReportHandler.class);
 
         registerHandler("guidelist", GuideListHandler.class);

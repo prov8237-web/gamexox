@@ -54,6 +54,7 @@ public class PreReportHandler extends OsBaseHandler {
             SFSObject res = new SFSObject();
             res.putBool("ok", false);
             res.putUtfString("errorCode", "MISSING_ITEM");
+            res.putUtfString("message", "moderation_target");
             sendResponseWithRid(command, res, sender, rid);
             return;
         }

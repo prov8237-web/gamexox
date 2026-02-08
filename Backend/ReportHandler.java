@@ -44,6 +44,7 @@ public class ReportHandler extends OsBaseHandler {
 
         if (reportedNorm == null || reportedNorm.trim().isEmpty() || "unknown".equalsIgnoreCase(reportedNorm) || "0".equals(reportedRaw)) {
             res.putUtfString("errorCode", "MISSING_ITEM");
+            res.putUtfString("message", "moderation_target");
             sendResponseWithRid("report", res, sender, rid);
             trace("[REPORT_SUBMIT_RES] reporter=" + reporterRaw + " errorCode=MISSING_ITEM");
             return;
