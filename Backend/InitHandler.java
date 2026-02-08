@@ -96,7 +96,7 @@ public class InitHandler extends OsBaseHandler {
         }
         boolean isGuest = !hasSavedData;
         if (isGuest) {
-            savedName = "Guest#" + customID;
+            savedName = customID;
         }
         state.setGender(savedGender);
         state.setAvatarName(savedName);

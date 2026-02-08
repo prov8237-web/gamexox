@@ -202,7 +202,7 @@ public class ProfileHandler extends OsBaseHandler {
         UserVariable nameVar = user.getVariable("avatarName");
         if (nameVar != null && nameVar.getStringValue() != null) {
             String name = nameVar.getStringValue();
-            if (!name.trim().isEmpty() && !name.startsWith("Guest#")) {
+            if (!name.trim().isEmpty()) {
                 return name;
             }
         }
